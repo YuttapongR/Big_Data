@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Big Data Dashboard</title>
+    <meta name="description" content="Real-time Big Data analytics dashboard for Steam game reviews, powered by PySpark and Apache Airflow">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div>
+                    <h1>🎮 Steam Big Data Dashboard</h1>
+                    <p>Real-time analytics on 239K+ games & 1M+ reviews from Steam Dataset 2025 via PySpark and Airflow.</p>
+                </div>
+                <div class="status-group">
+                    <div class="status" id="live-status">
+                        <span class="pulse"></span> 
+                        <span id="update-status">Connecting...</span>
+                    </div>
+                    <div class="status pipeline-status" id="pipeline-badge">
+                        <span>🔄</span>
+                        <span id="pipeline-status-text">Pipeline: Checking...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="last-update">
+                <span id="last-update-time">Last update: --</span>
+            </div>
+        </header>
+
+        <div class="kpi-cards">
+            <div class="card" id="card-reviews">
+                <div class="card-icon">📝</div>
+                <h3>Total Reviews</h3>
+                <h2 id="total-reviews">--</h2>
+                <span class="card-trend" id="trend-reviews">Global dataset</span>
+            </div>
+            <div class="card" id="card-positive">
+                <div class="card-icon">👍</div>
+                <h3>Global Positive Rate</h3>
+                <h2 id="positive-rate">--</h2>
+                <span class="card-trend" id="trend-positive">Across all games</span>
+            </div>
+            <div class="card" id="card-playtime">
+                <div class="card-icon">⏱️</div>
+                <h3>Total Reviewers</h3>
+                <h2 id="avg-playtime">--</h2>
+                <span class="card-trend" id="trend-playtime">Unique steam users</span>
+            </div>
+            <div class="card" id="card-games">
+                <div class="card-icon">🕹️</div>
+                <h3>Total Games Indexed</h3>
+                <h2 id="unique-games">--</h2>
+                <span class="card-trend" id="trend-games">From applications.csv</span>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-card">
+                <h2>📈 Reviews over Time (Positive vs Negative)</h2>
+                <div class="chart-wrapper">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>🏆 Top 10 Games by Global Reviews</h2>
+                <div class="chart-wrapper">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
