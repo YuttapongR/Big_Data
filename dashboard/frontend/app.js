@@ -1,312 +1,333 @@
-// ===== Global State =====
-let lineChartInstance = null;
-let barChartInstance = null;
-let previousData = null;
+document.addEventListener('DOMContentLoaded', () => {
+    // API URL Base (relative to host)
+    const API_BASE = '/api';
 
-// ===== Chart.js Dark Theme Defaults =====
-Chart.defaults.color = '#94a3b8';
-Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.07)';
-Chart.defaults.font.family = "'Inter', sans-serif";
+    // DOM Elements
+    const elements = {
+        totalReviews: document.getElementById('total-reviews'),
+        positiveRate: document.getElementById('positive-rate'),
+        uniqueReviewers: document.getElementById('unique-reviewers'),
+        uniqueGames: document.getElementById('unique-games'),
+        statusBadge: document.getElementById('live-status'),
+        statusText: document.getElementById('update-status'),
+        pipelineBadge: document.getElementById('pipeline-badge'),
+        pipelineText: document.getElementById('pipeline-status-text'),
+        lastUpdate: document.getElementById('last-update-time'),
+        refreshBtn: document.getElementById('refresh-btn'),
+        applyFiltersBtn: document.getElementById('apply-filters'),
+        dateStart: document.getElementById('date-start'),
+        dateEnd: document.getElementById('date-end'),
+        gameSearch: document.getElementById('game-search'),
+        gamesTbody: document.getElementById('games-tbody'),
+        // Data Quality
+        dqReviewsTotal: document.getElementById('dq-reviews-total'),
+        dqReviewsClean: document.getElementById('dq-reviews-clean'),
+        dqReviewsDrop: document.getElementById('dq-reviews-drop'),
+        dqAppsTotal: document.getElementById('dq-apps-total'),
+        dqAppsClean: document.getElementById('dq-apps-clean')
+    };
 
-// ===== Utility Functions =====
-const formatNumber = (num) => new Intl.NumberFormat('en-US').format(Math.round(num));
-const formatPercent = (num) => num.toFixed(1) + '%';
+    // Chart Instances
+    let lineChart = null;
+    let barChart = null;
 
-function setTrend(elementId, current, previous) {
-    const el = document.getElementById(elementId);
-    if (!el || !previous) { el.textContent = ''; return; }
-    const diff = ((current - previous) / previous * 100).toFixed(1);
-    if (diff > 0) {
-        el.textContent = `▲ ${diff}%`;
-        el.className = 'card-trend up';
-    } else if (diff < 0) {
-        el.textContent = `▼ ${Math.abs(diff)}%`;
-        el.className = 'card-trend down';
-    } else {
-        el.textContent = '— 0%';
-        el.className = 'card-trend';
+    // Theme colors for Chart.js
+    const chartTheme = {
+        gridColor: 'rgba(255, 255, 255, 0.05)',
+        textColor: '#94a3b8',
+        positiveColor: '#10b981', // Accent Green
+        negativeColor: '#ef4444', // Accent Danger
+        totalColor: '#3b82f6'     // Accent Blue
+    };
+
+    Chart.defaults.color = chartTheme.textColor;
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    // Do not set default dates so the backend returns the latest 90 days of available data
+    elements.dateStart.value = "";
+    elements.dateEnd.value = "";
+
+    // Format numbers
+    const fmt = (num) => new Intl.NumberFormat('en-US').format(num || 0);
+
+    // Initialization
+    async function initDashboard() {
+        await checkPipelineStatus();
+        await fetchAllData();
+        await fetchDataQuality();
     }
-}
 
-// ===== Fetch Dashboard Data =====
-async function fetchDashboardData() {
-    try {
-        const response = await fetch('/api/dashboard-data');
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        
-        const chartData = result.data || result;
-        const isMock = result.is_mock || false;
+    // Fetch all required data
+    async function fetchAllData() {
+        setStatus('loading');
 
-        updateKPIs(chartData, result.summary);
-        updateLineChart(chartData);
-        updateLiveStatus(isMock);
-        
-        document.getElementById('last-update-time').textContent = 
-            `Last update: ${new Date().toLocaleTimeString('th-TH')}`;
-        
-        previousData = chartData;
-    } catch (error) {
-        console.error("Failed to fetch data:", error);
-        updateLiveStatus(null, true);
+        try {
+            const startDate = elements.dateStart.value;
+            const endDate = elements.dateEnd.value;
+            const search = elements.gameSearch.value;
+
+            // Fetch Dashboard Data
+            const dashRes = await fetch(`${API_BASE}/dashboard-data?start_date=${startDate}&end_date=${endDate}`);
+            const dashData = await dashRes.json();
+
+            // Fetch Top Games Data
+            const gamesUrl = search ? `${API_BASE}/top-games?search=${encodeURIComponent(search)}&limit=50` : `${API_BASE}/top-games?limit=50`;
+            const gamesRes = await fetch(gamesUrl);
+            const gamesData = await gamesRes.json();
+
+            updateKPIs(dashData);
+            updateLineChart(dashData.data);
+            updateBarChart(gamesData.data);
+            updateGamesTable(gamesData.data);
+
+            setStatus('online', dashData.is_mock);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            setStatus('error');
+        }
     }
-}
 
-// ===== Fetch Top Games =====
-async function fetchTopGames() {
-    try {
-        const response = await fetch('/api/top-games');
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const result = await response.json();
-        
-        const gamesData = result.data || result;
-        updateBarChart(gamesData);
-    } catch (error) {
-        console.error("Failed to fetch top games:", error);
+    // Fetch Data Quality Log
+    async function fetchDataQuality() {
+        try {
+            const res = await fetch(`${API_BASE}/data-quality`);
+            const dq = await res.json();
+            const d = dq.data;
+
+            elements.dqReviewsTotal.textContent = fmt(d.reviews_total_scanned);
+            elements.dqReviewsClean.textContent = fmt(d.reviews_cleaned_count);
+            elements.dqReviewsDrop.textContent = fmt(d.reviews_dropped);
+            elements.dqAppsTotal.textContent = fmt(d.apps_total);
+            elements.dqAppsClean.textContent = fmt(d.apps_cleaned);
+        } catch (error) {
+            console.error('Error fetching DQ:', error);
+        }
     }
-}
 
-// ===== Fetch Pipeline Status =====
-async function fetchPipelineStatus() {
-    try {
-        const response = await fetch('/api/pipeline-status');
-        if (!response.ok) return;
-        const status = await response.json();
-        
-        const badge = document.getElementById('pipeline-badge');
-        const text = document.getElementById('pipeline-status-text');
-        
-        if (status.status === 'completed') {
-            const lastRun = status.last_run ? new Date(status.last_run).toLocaleString('th-TH') : 'N/A';
-            text.textContent = `Pipeline: ✅ Last run ${lastRun}`;
-            badge.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-            badge.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-            badge.style.color = '#10b981';
-        } else if (status.status === 'waiting') {
-            text.textContent = 'Pipeline: ⏳ Waiting for first run';
-            badge.style.borderColor = 'rgba(245, 158, 11, 0.2)';
-            badge.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
-            badge.style.color = '#f59e0b';
+    // Check Airflow Pipeline Status
+    async function checkPipelineStatus() {
+        try {
+            const response = await fetch(`${API_BASE}/pipeline-status`);
+            const status = await response.json();
+
+            if (status.status === 'completed') {
+                elements.pipelineBadge.className = 'status-item pipeline-status success';
+                elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Pipeline: OK</span>`;
+            } else if (status.status === 'waiting') {
+                elements.pipelineBadge.className = 'status-item pipeline-status';
+                elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Pipeline: Waiting</span>`;
+            } else {
+                elements.pipelineBadge.className = 'status-item pipeline-status error';
+                elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Pipeline: Error</span>`;
+            }
+        } catch (error) {
+            console.error('Error fetching pipeline status:', error);
+        }
+    }
+
+    // Update KPI Cards
+    function updateKPIs(payload) {
+        if (payload.summary) {
+            const s = payload.summary;
+            elements.totalReviews.textContent = fmt(s.total_reviews);
+            elements.positiveRate.textContent = `${s.positive_rate}%`;
+            elements.uniqueReviewers.textContent = fmt(s.unique_reviewers);
+            elements.uniqueGames.textContent = fmt(s.total_games);
+            elements.lastUpdate.textContent = `Last update: ${s.last_updated}`;
         } else {
-            text.textContent = `Pipeline: ${status.status}`;
+            // Aggregate from filtered data if summary not available
+            const data = payload.data;
+            if (data && data.length > 0) {
+                const total = data.reduce((sum, row) => sum + row.total_reviews, 0);
+                const pos = data.reduce((sum, row) => sum + row.positive_reviews, 0);
+                const posRate = total > 0 ? ((pos / total) * 100).toFixed(1) : 0;
+
+                elements.totalReviews.textContent = fmt(total);
+                elements.positiveRate.textContent = `${posRate}%`;
+                elements.uniqueReviewers.textContent = "See Global";
+                elements.uniqueGames.textContent = "See Global";
+            } else {
+                elements.totalReviews.textContent = '0';
+                elements.positiveRate.textContent = '0%';
+            }
         }
-    } catch (e) {
-        document.getElementById('pipeline-status-text').textContent = 'Pipeline: ❓ Unknown';
-    }
-}
-
-// ===== Update Status Badge =====
-function updateLiveStatus(isMock, isError = false) {
-    const statusText = document.getElementById('update-status');
-    const pulse = document.querySelector('.pulse');
-    const badge = document.getElementById('live-status');
-    
-    if (isError) {
-        statusText.textContent = "Connection Error";
-        pulse.style.backgroundColor = "#ef4444";
-        badge.style.color = "#ef4444";
-        badge.style.borderColor = "rgba(239, 68, 68, 0.2)";
-        badge.style.backgroundColor = "rgba(239, 68, 68, 0.1)";
-    } else if (isMock) {
-        statusText.textContent = "Live (Mock Data)";
-        pulse.style.backgroundColor = "#f59e0b";
-        badge.style.color = "#f59e0b";
-        badge.style.borderColor = "rgba(245, 158, 11, 0.2)";
-        badge.style.backgroundColor = "rgba(245, 158, 11, 0.1)";
-    } else {
-        statusText.textContent = "Live Updates Active";
-        pulse.style.backgroundColor = "#10b981";
-        badge.style.color = "#10b981";
-        badge.style.borderColor = "rgba(16, 185, 129, 0.2)";
-        badge.style.backgroundColor = "rgba(16, 185, 129, 0.1)";
-    }
-}
-
-// ===== Update KPI Cards =====
-function updateKPIs(data, summary) {
-    if (summary) {
-        // Use Global Summary if available
-        document.getElementById('total-reviews').innerText = formatNumber(summary.total_reviews);
-        document.getElementById('positive-rate').innerText = formatPercent(summary.positive_rate);
-        document.getElementById('avg-playtime').innerText = formatNumber(summary.unique_reviewers);
-        document.getElementById('unique-games').innerText = formatNumber(summary.total_games);
-        return;
     }
 
-    if (!data || data.length === 0) return;
-    
-    const latest = data[data.length - 1];
+    // Update Line Chart
+    function updateLineChart(data) {
+        const ctx = document.getElementById('lineChart').getContext('2d');
+        const labels = data.map(d => d.review_date);
+        const positive = data.map(d => d.positive_reviews);
+        const negative = data.map(d => d.negative_reviews);
+        const total = data.map(d => d.total_reviews);
 
-    // Total Reviews
-    document.getElementById('total-reviews').innerText = formatNumber(latest.total_reviews);
-    
-    // Positive Rate
-    const positiveRate = latest.total_reviews > 0 
-        ? (latest.positive_reviews / latest.total_reviews * 100) 
-        : 0;
-    document.getElementById('positive-rate').innerText = formatPercent(positiveRate);
-    
-    // Total Reviewers
-    document.getElementById('avg-playtime').innerText = 
-        latest.unique_reviewers ? formatNumber(latest.unique_reviewers) : '--';
-    
-    // Unique Games
-    document.getElementById('unique-games').innerText = formatNumber(latest.unique_games);
+        if (lineChart) lineChart.destroy();
 
-}
-
-// ===== Update Line Chart (Daily Reviews) =====
-function updateLineChart(data) {
-    if (!data || data.length === 0) return;
-
-    const labels = data.map(d => d.review_date);
-    const positive = data.map(d => d.positive_reviews);
-    const negative = data.map(d => d.negative_reviews);
-
-    const lineCtx = document.getElementById('lineChart').getContext('2d');
-    if (lineChartInstance) lineChartInstance.destroy();
-    
-    const positiveGradient = lineCtx.createLinearGradient(0, 0, 0, 300);
-    positiveGradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-    positiveGradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-
-    const negativeGradient = lineCtx.createLinearGradient(0, 0, 0, 300);
-    negativeGradient.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
-    negativeGradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
-
-    lineChartInstance = new Chart(lineCtx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: '👍 Positive Reviews',
-                    data: positive,
-                    borderColor: '#10b981',
-                    backgroundColor: positiveGradient,
-                    borderWidth: 2.5,
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#10b981'
+        lineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Reviews',
+                        data: total,
+                        borderColor: chartTheme.totalColor,
+                        backgroundColor: chartTheme.totalColor,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Positive',
+                        data: positive,
+                        borderColor: chartTheme.positiveColor,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Negative',
+                        data: negative,
+                        borderColor: chartTheme.negativeColor,
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
                 },
-                {
-                    label: '👎 Negative Reviews',
-                    data: negative,
-                    borderColor: '#ef4444',
-                    backgroundColor: negativeGradient,
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    pointBackgroundColor: '#ef4444'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { intersect: false, mode: 'index' },
-            plugins: {
-                legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
-                tooltip: {
-                    backgroundColor: '#1e293b',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    padding: 12,
-                    titleFont: { weight: '600' },
-                    callbacks: {
-                        label: (ctx) => `${ctx.dataset.label}: ${formatNumber(ctx.parsed.y)}`
+                scales: {
+                    x: { grid: { color: chartTheme.gridColor } },
+                    y: { grid: { color: chartTheme.gridColor } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'rgba(26, 30, 41, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1
                     }
                 }
-            },
-            scales: {
-                y: { beginAtZero: true, ticks: { callback: (v) => formatNumber(v) } },
-                x: { grid: { display: false } }
             }
-        }
-    });
-}
+        });
+    }
 
-// ===== Update Bar Chart (Top Games) =====
-function updateBarChart(data) {
-    if (!data || data.length === 0) return;
+    // Update Bar Chart
+    function updateBarChart(data) {
+        const ctx = document.getElementById('barChart').getContext('2d');
+        // Top 10 for bar chart
+        const top10 = data.slice(0, 10);
+        const labels = top10.map(d => d.name);
+        const positive = top10.map(d => d.positive_reviews);
+        const negative = top10.map(d => d.negative_reviews);
 
-    const labels = data.slice(0, 10).map(d => {
-        const name = d.name || d.app_name || "Unknown Game";
-        return name.length > 20 ? name.substring(0, 18) + '...' : name;
-    });
-    const reviews = data.slice(0, 10).map(d => d.recommendations_total || d.total_reviews);
-    const positiveRates = data.slice(0, 10).map(d => {
-        if (d.positive_rate) return d.positive_rate;
-        return d.total_reviews > 0 ? (d.positive_reviews / d.total_reviews * 100).toFixed(1) : 0;
-    });
+        if (barChart) barChart.destroy();
 
-    const barCtx = document.getElementById('barChart').getContext('2d');
-    if (barChartInstance) barChartInstance.destroy();
-
-    // สร้างสีตามอัตรา positive (เขียว = ดี, แดง = ไม่ดี)
-    const barColors = positiveRates.map(rate => {
-        if (rate >= 80) return 'rgba(16, 185, 129, 0.8)';
-        if (rate >= 60) return 'rgba(245, 158, 11, 0.8)';
-        return 'rgba(239, 68, 68, 0.8)';
-    });
-
-    barChartInstance = new Chart(barCtx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Total Reviews',
-                data: reviews,
-                backgroundColor: barColors,
-                borderRadius: 6,
-                borderSkipped: false,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            interaction: { intersect: false },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#1e293b',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    padding: 12,
-                    callbacks: {
-                        label: (ctx) => {
-                            const idx = ctx.dataIndex;
-                            return [
-                                `Reviews: ${formatNumber(ctx.parsed.x)}`,
-                                `Positive: ${positiveRates[idx]}%`
-                            ];
-                        }
+        barChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Positive Reviews',
+                        data: positive,
+                        backgroundColor: chartTheme.positiveColor,
+                    },
+                    {
+                        label: 'Negative Reviews',
+                        data: negative,
+                        backgroundColor: chartTheme.negativeColor,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, grid: { color: chartTheme.gridColor }, ticks: { maxRotation: 45, minRotation: 45 } },
+                    y: { stacked: true, grid: { color: chartTheme.gridColor } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'rgba(26, 30, 41, 0.9)',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1
                     }
                 }
-            },
-            scales: {
-                x: { beginAtZero: true, ticks: { callback: (v) => formatNumber(v) } },
-                y: { grid: { display: false } }
             }
+        });
+    }
+
+    // Update Games Table
+    function updateGamesTable(data) {
+        elements.gamesTbody.innerHTML = '';
+
+        if (data.length === 0) {
+            elements.gamesTbody.innerHTML = `<tr><td colspan="5" style="text-align:center">No games found</td></tr>`;
+            return;
         }
+
+        data.forEach(game => {
+            const tr = document.createElement('tr');
+
+            // Color code positive rate
+            let prClass = '';
+            if (game.positive_rate > 80) prClass = 'success-text';
+            else if (game.positive_rate < 50) prClass = 'danger-text';
+
+            tr.innerHTML = `
+                <td><strong>${game.name}</strong></td>
+                <td>${fmt(game.total_reviews)}</td>
+                <td class="${prClass}">${game.positive_rate}%</td>
+                <td>${game.avg_playtime_hours}</td>
+                <td>${fmt(game.recommendations_total)}</td>
+            `;
+            elements.gamesTbody.appendChild(tr);
+        });
+    }
+
+    // Connection Status helper
+    function setStatus(state, isMock = false) {
+        const dot = elements.statusBadge.querySelector('.status-dot');
+        if (state === 'loading') {
+            dot.style.backgroundColor = '#f1c40f'; // Yellow
+            dot.style.boxShadow = '0 0 8px #f1c40f';
+            elements.statusText.textContent = 'Updating...';
+        } else if (state === 'online') {
+            dot.style.backgroundColor = isMock ? '#f39c12' : '#10b981';
+            dot.style.boxShadow = isMock ? '0 0 8px #f39c12' : '0 0 8px #10b981';
+            elements.statusText.textContent = isMock ? 'Connected' : 'Connected';
+        } else if (state === 'error') {
+            dot.style.backgroundColor = '#ef4444'; // Red
+            dot.style.boxShadow = '0 0 8px #ef4444';
+            elements.statusText.textContent = 'Connection Error';
+        }
+    }
+
+    // Event Listeners
+    elements.refreshBtn.addEventListener('click', initDashboard);
+    elements.applyFiltersBtn.addEventListener('click', initDashboard);
+    elements.gameSearch.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') initDashboard();
     });
-}
 
-// ===== Initial Load & Polling =====
-fetchDashboardData();
-fetchTopGames();
-fetchPipelineStatus();
+    // Start
+    initDashboard();
 
-// Poll dashboard data every 10 seconds
-setInterval(fetchDashboardData, 10000);
-
-// Poll top games every 60 seconds
-setInterval(fetchTopGames, 60000);
-
-// Poll pipeline status every 30 seconds
-setInterval(fetchPipelineStatus, 30000);
+    // Auto refresh every 5 minutes
+    setInterval(initDashboard, 5 * 60 * 1000);
+});

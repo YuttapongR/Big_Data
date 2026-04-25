@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam Big Data Architecture & Workflow</title>
+    <!-- โหลดไลบรารี Mermaid สำหรับเรนเดอร์ Diagram -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #0f111a;
+            color: #e2e8f0;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #66c0f4;
+        }
+
+        .mermaid {
+            background: #1a1e29;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .step-box {
+            background: #1a1e29;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        code {
+            background: #2a3040;
+            padding: 3px 6px;
+            border-radius: 4px;
+            color: #ff79c6;
+        }
+
+        ul,
+        ol {
+            margin-top: 10px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Steam Big Data Architecture & Workflow</h1>
+    <p>ไดอะแกรมด้านล่างนี้แสดงขั้นตอนการทำงานของระบบทั้งหมดตั้งแต่ไฟล์ข้อมูลดิบ (Raw Data) ไปจนถึงการแสดงผลบนหน้าจอ
+        Dashboard ครับ</p>
+
+    <!-- กล่องแสดงผล Mermaid Diagram -->
+    <div class="mermaid">
+flowchart TD
+    classDef rawData fill:#2a475e,stroke:#66c0f4,stroke-width:2px,color:#fff
+    classDef sparkJob fill:#e67e22,stroke:#d35400,stroke-width:2px,color:#fff
+    classDef parquetData fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff
+    classDef apiServer fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:#fff
+    classDef frontend fill:#2980b9,stroke:#3498db,stroke-width:2px,color:#fff
+    classDef jsonLog fill:#7f8c8d,stroke:#95a5a6,stroke-width:2px,color:#fff
+
+    subgraph DataSource ["1. Data Source"]
+        R1["reviews.csv"]:::rawData
+        A1["applications.csv"]:::rawData
+    end
+
+    subgraph AirflowPipeline ["2. Apache Airflow and PySpark Pipeline"]
+        C1["clean_data.py"]:::sparkJob
+        C2["aggregate_data.py"]:::sparkJob
+        
+        R1 -->|"1. Read 500k rows"| C1
+        A1 -->|"2. Read apps data"| C1
+        
+        C1 -->|"3. Clean reviews"| CP1[("cleaned_reviews.parquet")]:::parquetData
+        C1 -->|"4. Clean apps"| CP2[("cleaned_apps.parquet")]:::parquetData
+        C1 -.->|"Log quality"| DQ["data_quality_log.json"]:::jsonLog
+        
+        CP1 -->|"5. Use clean data"| C2
+        CP2 -->|"5. Use clean data"| C2
+        
+        C2 -->|"6. Daily Summary"| P1[("daily_steam_reviews.parquet")]:::parquetData
+        C2 -->|"7. Top Games"| P2[("top_games.parquet")]:::parquetData
+        C2 -.->|"Global stats"| S1["summary.json"]:::jsonLog
+        C2 -.->|"Status update"| PS[".pipeline_status.json"]:::jsonLog
+    end
+
+    subgraph Backend ["3. FastAPI Backend (main.py)"]
+        API1["GET /api/dashboard-data"]:::apiServer
+        API2["GET /api/top-games"]:::apiServer
+        API3["GET /api/data-quality"]:::apiServer
+        API4["GET /api/pipeline-status"]:::apiServer
+        
+        P1 -.->|"Read Parquet"| API1
+        P2 -.->|"Read Parquet"| API2
+        DQ -.->|"Read JSON"| API3
+        PS -.->|"Read JSON"| API4
+        S1 -.->|"Read JSON"| API1
+    end
+
+    subgraph Client ["4. Frontend Dashboard"]
+        UI1["app.js, index.html, style.css"]:::frontend
+        
+        API1 <-->|"Fetch Dashboard Data"| UI1
+        API2 <-->|"Fetch Top Games"| UI1
+        API3 <-->|"Fetch Data Quality"| UI1
+        API4 <-->|"Fetch Status"| UI1
+    end
+    </div>
+
+    <h2>คำอธิบายแต่ละขั้นตอน (Step-by-Step Flow)</h2>
+
+    <div class="step-box">
+        <h3>1. 📁 Data Source (ข้อมูลต้นทาง)</h3>
+        <p>ผู้ใช้นำไฟล์ <code>reviews.csv</code> และ <code>applications.csv</code> จาก Kaggle ไปวางในโฟลเดอร์
+            <code>data/raw/</code>
+        </p>
+    </div>
+
+    <div class="step-box">
+        <h3>2. ⚙️ Data Pipeline (การทำความสะอาดและสรุปผลด้วย PySpark)</h3>
+        <p>Airflow จะสั่งรันสคริปต์ PySpark ตามลำดับดังนี้:</p>
+        <ol>
+            <li><strong><code>clean_data.py</code></strong>:
+                <ul>
+                    <li>อ่าน <code>reviews.csv</code> (จำกัด 500,000 แถวแรก) และทิ้งแถวที่โครงสร้างพัง (DROPMALFORMED)
+                    </li>
+                    <li>สร้างไฟล์สรุปการทำความสะอาด <code>data_quality_log.json</code> ไว้ดูว่าข้อมูลเสียไปกี่แถว</li>
+                    <li>บันทึกไฟล์ที่สะอาดแล้วเป็น Parquet (อ่านไว ใช้พื้นที่น้อย)</li>
+                </ul>
+            </li>
+            <li><strong><code>aggregate_data.py</code></strong>:
+                <ul>
+                    <li>นำไฟล์ที่สะอาดแล้วมา Group By เพื่อคำนวณจำนวนรีวิวเฉลี่ยรายวัน และหาเกมยอดฮิต</li>
+                    <li>บันทึกผลลัพธ์ลงเป็น <code>daily_steam_reviews.parquet</code> และ <code>top_games.parquet</code>
+                    </li>
+                    <li>สร้างไฟล์ <code>summary.json</code> และ <code>.pipeline_status.json</code> บอกว่ารันเสร็จสมบูรณ์
+                    </li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="step-box">
+        <h3>3. 🚀 Backend (ตัวกลางส่งข้อมูล)</h3>
+        <p>FastAPI ทำหน้าที่เป็นประตูส่งข้อมูลจากไฟล์ Parquet/JSON เข้าสู่หน้าเว็บ:</p>
+        <ul>
+            <li><strong><code>/api/dashboard-data</code></strong>: ค้นหาข้อมูลแนวโน้มรายวัน (โดยสามารถรับค่าวันที่
+                Start/End จากหน้าเว็บมากรองข้อมูลด้วย Pandas ได้)</li>
+            <li><strong><code>/api/top-games</code></strong>: ส่งข้อมูลเกมฮิต โดยรับค่าชื่อเกม (Search)
+                จากหน้าเว็บมากรองได้</li>
+            <li><strong><code>/api/data-quality</code></strong>: ส่งค่า Log คุณภาพข้อมูลให้หน้าเว็บแสดงผล</li>
+        </ul>
+    </div>
+
+    <div class="step-box">
+        <h3>4. 💻 Frontend (หน้าจอผู้ใช้)</h3>
+        <ul>
+            <li><strong><code>app.js</code></strong> จะดึงข้อมูล (Fetch) จาก Backend ทั้ง 4 API มารวมกัน</li>
+            <li>หากไม่ได้เลือกวันที่ ระบบจะไม่ส่งวันที่ไปให้ API ทำให้ Backend ส่งข้อมูล 90 วันล่าสุดกลับมาอัตโนมัติ
+            </li>
+            <li>นำข้อมูลไปอัปเดตกราฟแท่ง, กราฟเส้น, ตารางค้นหาเกม และอัปเดตหน้าจอผ่าน <code>index.html</code> และ
+                <code>style.css</code> แบบ Real-time
+            </li>
+        </ul>
+    </div>
+
+</body>
+
+</html>

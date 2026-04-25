@@ -3,77 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Steam Big Data Dashboard</title>
+    <title>Steam Big Data Analytics Dashboard</title>
     <meta name="description" content="Real-time Big Data analytics dashboard for Steam game reviews, powered by PySpark and Apache Airflow">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-top">
-                <div>
-                    <h1>🎮 Steam Big Data Dashboard</h1>
-                    <p>Real-time analytics on 239K+ games & 1M+ reviews from Steam Dataset 2025 via PySpark and Airflow.</p>
+    <div class="app-container">
+        <!-- Sidebar / Control Panel -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <i class="fa-brands fa-steam steam-logo"></i>
+                <h2>Steam Analytics</h2>
+            </div>
+            
+            <div class="control-group">
+                <h3><i class="fa-solid fa-filter"></i> Filters</h3>
+                <div class="filter-item">
+                    <label for="date-start">Start Date</label>
+                    <input type="date" id="date-start" class="glass-input">
                 </div>
-                <div class="status-group">
-                    <div class="status" id="live-status">
-                        <span class="pulse"></span> 
-                        <span id="update-status">Connecting...</span>
-                    </div>
-                    <div class="status pipeline-status" id="pipeline-badge">
-                        <span>🔄</span>
-                        <span id="pipeline-status-text">Pipeline: Checking...</span>
-                    </div>
+                <div class="filter-item">
+                    <label for="date-end">End Date</label>
+                    <input type="date" id="date-end" class="glass-input">
+                </div>
+                <div class="filter-item">
+                    <label for="game-search">Search Games</label>
+                    <input type="text" id="game-search" class="glass-input" placeholder="e.g. Dota 2, Cyberpunk...">
+                </div>
+                <button id="apply-filters" class="glow-button">Apply Filters</button>
+            </div>
+            
+            <div class="system-status">
+                <h3><i class="fa-solid fa-server"></i> System</h3>
+                <div class="status-item" id="live-status">
+                    <span class="status-dot"></span> 
+                    <span id="update-status">Connecting...</span>
+                </div>
+                <div class="status-item pipeline-status" id="pipeline-badge">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span id="pipeline-status-text">Pipeline: Checking</span>
+                </div>
+                <div class="last-update">
+                    <small id="last-update-time">Last update: --</small>
                 </div>
             </div>
-            <div class="last-update">
-                <span id="last-update-time">Last update: --</span>
-            </div>
-        </header>
+        </aside>
 
-        <div class="kpi-cards">
-            <div class="card" id="card-reviews">
-                <div class="card-icon">📝</div>
-                <h3>Total Reviews</h3>
-                <h2 id="total-reviews">--</h2>
-                <span class="card-trend" id="trend-reviews">Global dataset</span>
-            </div>
-            <div class="card" id="card-positive">
-                <div class="card-icon">👍</div>
-                <h3>Global Positive Rate</h3>
-                <h2 id="positive-rate">--</h2>
-                <span class="card-trend" id="trend-positive">Across all games</span>
-            </div>
-            <div class="card" id="card-playtime">
-                <div class="card-icon">⏱️</div>
-                <h3>Total Reviewers</h3>
-                <h2 id="avg-playtime">--</h2>
-                <span class="card-trend" id="trend-playtime">Unique steam users</span>
-            </div>
-            <div class="card" id="card-games">
-                <div class="card-icon">🕹️</div>
-                <h3>Total Games Indexed</h3>
-                <h2 id="unique-games">--</h2>
-                <span class="card-trend" id="trend-games">From applications.csv</span>
-            </div>
-        </div>
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header glass-panel">
+                <div class="header-titles">
+                    <h1>Real-time Multi-Modal Gaming Analytics</h1>
+                    <p>Powered by PySpark, Parquet & Airflow (Steam Dataset 2025)</p>
+                </div>
+                <div class="header-actions">
+                    <button id="refresh-btn" class="icon-button"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+            </header>
 
-        <div class="charts-container">
-            <div class="chart-card">
-                <h2>📈 Reviews over Time (Positive vs Negative)</h2>
-                <div class="chart-wrapper">
-                    <canvas id="lineChart"></canvas>
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card glass-panel" id="card-reviews">
+                    <div class="kpi-icon blue-glow"><i class="fa-solid fa-comments"></i></div>
+                    <div class="kpi-info">
+                        <h3>Total Reviews Processed</h3>
+                        <h2 id="total-reviews">--</h2>
+                        <span class="trend" id="trend-reviews">Global dataset</span>
+                    </div>
+                </div>
+                <div class="kpi-card glass-panel" id="card-positive">
+                    <div class="kpi-icon green-glow"><i class="fa-solid fa-thumbs-up"></i></div>
+                    <div class="kpi-info">
+                        <h3>Global Positive Rate</h3>
+                        <h2 id="positive-rate">--</h2>
+                        <span class="trend" id="trend-positive">Across all games</span>
+                    </div>
+                </div>
+                <div class="kpi-card glass-panel" id="card-playtime">
+                    <div class="kpi-icon purple-glow"><i class="fa-solid fa-users"></i></div>
+                    <div class="kpi-info">
+                        <h3>Unique Reviewers</h3>
+                        <h2 id="unique-reviewers">--</h2>
+                        <span class="trend" id="trend-playtime">Steam users</span>
+                    </div>
+                </div>
+                <div class="kpi-card glass-panel" id="card-games">
+                    <div class="kpi-icon pink-glow"><i class="fa-solid fa-gamepad"></i></div>
+                    <div class="kpi-info">
+                        <h3>Games Indexed</h3>
+                        <h2 id="unique-games">--</h2>
+                        <span class="trend" id="trend-games">applications.csv</span>
+                    </div>
                 </div>
             </div>
-            <div class="chart-card">
-                <h2>🏆 Top 10 Games by Global Reviews</h2>
-                <div class="chart-wrapper">
-                    <canvas id="barChart"></canvas>
+
+            <!-- Charts Section -->
+            <div class="charts-grid">
+                <div class="chart-container glass-panel span-2">
+                    <div class="chart-header">
+                        <h2><i class="fa-solid fa-chart-area"></i> Reviews Trend (90 Days)</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container glass-panel">
+                    <div class="chart-header">
+                        <h2><i class="fa-solid fa-ranking-star"></i> Top Games by Popularity</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container glass-panel">
+                    <div class="chart-header">
+                        <h2><i class="fa-solid fa-shield-halved"></i> Data Quality (PySpark)</h2>
+                    </div>
+                    <div class="data-quality-content">
+                        <div class="quality-row">
+                            <span>Total Reviews Read</span>
+                            <strong id="dq-reviews-total">--</strong>
+                        </div>
+                        <div class="quality-row">
+                            <span>Cleaned Reviews (Parquet)</span>
+                            <strong class="success-text" id="dq-reviews-clean">--</strong>
+                        </div>
+                        <div class="quality-row">
+                            <span>Malformed/Dropped</span>
+                            <strong class="danger-text" id="dq-reviews-drop">--</strong>
+                        </div>
+                        <hr class="glass-divider">
+                        <div class="quality-row">
+                            <span>Apps Scanned</span>
+                            <strong id="dq-apps-total">--</strong>
+                        </div>
+                        <div class="quality-row">
+                            <span>Apps Kept</span>
+                            <strong class="success-text" id="dq-apps-clean">--</strong>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <!-- Data Table -->
+            <div class="table-container glass-panel">
+                <div class="chart-header">
+                    <h2><i class="fa-solid fa-table-list"></i> Game Explorer</h2>
+                </div>
+                <div class="table-wrapper">
+                    <table id="games-table">
+                        <thead>
+                            <tr>
+                                <th>Game Name</th>
+                                <th>Total Reviews</th>
+                                <th>Positive Rate</th>
+                                <th>Avg Playtime (hrs)</th>
+                                <th>Total Recommendations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="games-tbody">
+                            <!-- Rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script src="/static/app.js"></script>
