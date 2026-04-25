@@ -48,3 +48,17 @@ Pipeline Status (แถบสถานะ)	.pipeline_status.json	สถานะ
 สรุปภาพรวม:
 กุญแจเชื่อมข้อมูล: คือ appid
 กุญแจเชื่อมระบบ: คือ โฟลเดอร์ data/processed/ (Airflow มีหน้าที่ "เขียน" ข้อมูลลงไป ส่วน Dashboard มีหน้าที่ "อ่าน" ขึ้นมาโชว์ครับ)
+
+
+
+เอาข้อมูลจริงในลิงค์นี้
+https://www.kaggle.com/datasets/crainbramp/steam-dataset-2025-multi-modal-gaming-analytics
+ไม่ต้องmockupขึ้นมาตัวอย่างอ่านทีละ500000ก็ได้
+และเพิ่มdashboradให้แสดงข้อมูลที่เยอะกว่านี้และเพิ่มฟีลเตอร์ในหน้าdashborad เช่น เลือกวันที่ เลือกข้อมูลรีวิวเกมที่อยากดูและปรับหน้าdashboradให้ดูสวยงามขึ้นและเปลี่ยนการอ่านไฟล์ด้วย pandas เป็น pysparkและโชว์เออเร่อของข้อมูลนี้และแปลงข้อมูลcsv เป็น parquet
+
+
+ทำไม pipelineถึงขึ้น Pipeline: Waiting
+และไม่ต้องmockup ข้อมูลขึ้นมาเอาข้อมูลจริงๆที่ใส่ไว้ใน data/raws เลย
+
+
+รัน airflow เสร็จแล้วแต่ข้อมูลหน้าdashborad ไม่ขึ้น
