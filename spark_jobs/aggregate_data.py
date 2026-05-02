@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, sum as _sum, mean, countDistinct, round, first, date_format
+from pyspark.sql.functions import col, count, sum as _sum, mean, countDistinct, round, first, date_format, lower, regexp_replace, explode, split, length
+from pyspark.ml.feature import Tokenizer, StopWordsRemover
 import os
 from datetime import datetime
 import json
@@ -11,6 +12,9 @@ def aggregate_steam_data():
     spark = SparkSession.builder \
         .appName("Steam Data Aggregation") \
         .config("spark.sql.parquet.compression.codec", "snappy") \
+        .config("spark.driver.memory", "2g") \
+        .config("spark.executor.memory", "2g") \
+        .config("spark.sql.shuffle.partitions", "10") \
         .getOrCreate()
         
     spark.sparkContext.setLogLevel("WARN")
@@ -95,7 +99,44 @@ def aggregate_steam_data():
         top_games_df.coalesce(1).write.mode("overwrite").parquet(top_games_path)
         print(f"✅ Top games: {top_games_count} rows → {top_games_path}")
 
-        # ===== Aggregation 3: Global Summary =====
+        # ===== Aggregation 3: Top Games by Hardcore Fans (100+ hours) =====
+        print("⏳ Aggregating Top Games by Hardcore Fans...")
+        hardcore_df = reviews_df.filter(col("playtime_hours") >= 100) \
+            .groupBy("appid") \
+            .agg(count("recommendationid").alias("hardcore_reviews")) \
+            .join(apps_df, "appid", "inner") \
+            .select("name", "hardcore_reviews") \
+            .orderBy(col("hardcore_reviews").desc()) \
+            .limit(15)
+
+        hardcore_path = os.path.join(processed_dir, "hardcore_games.parquet")
+        hardcore_df.coalesce(1).write.mode("overwrite").parquet(hardcore_path)
+        print(f"✅ Hardcore Fans Games: {hardcore_path}")
+
+        # ===== Aggregation 4: Word Frequency (Keywords) =====
+        print("⏳ Extracting common words from reviews...")
+        # Clean text: keep alphanumeric and space, remove common artifacts
+        words_df = reviews_df.filter(col("review_text").isNotNull()) \
+            .withColumn("text", lower(col("review_text"))) \
+            .withColumn("text", regexp_replace(col("text"), "[^a-z0-9 ]", " ")) \
+            .withColumn("words", split(col("text"), "\\s+"))
+        
+        remover = StopWordsRemover(inputCol="words", outputCol="filtered")
+        words_df = remover.transform(words_df)
+        
+        keywords_df = words_df.withColumn("word", explode(col("filtered"))) \
+            .filter(length(col("word")) > 3) \
+            .groupBy("word") \
+            .count() \
+            .orderBy(col("count").desc()) \
+            .limit(30)
+
+        keywords_count = keywords_df.count()
+        keywords_path = os.path.join(processed_dir, "common_words.parquet")
+        keywords_df.coalesce(1).write.mode("overwrite").parquet(keywords_path)
+        print(f"✅ Common words: {keywords_count} words extracted → {keywords_path}")
+
+        # ===== Aggregation 5: Global Summary =====
         print("⏳ Generating global summary...")
         positive_count = reviews_df.filter(col("is_positive") == True).count()
         positive_rate = float(f"{(positive_count / total_reviews) * 100:.1f}") if total_reviews > 0 else 0.0

@@ -1,15 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Steam Big Data Analytics Dashboard</title>
-    <meta name="description" content="Real-time Big Data analytics dashboard for Steam game reviews, powered by PySpark and Apache Airflow">
+    <meta name="description"
+        content="Real-time Big Data analytics dashboard for Steam game reviews, powered by PySpark and Apache Airflow">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
 </head>
+
 <body>
     <div class="app-container">
         <!-- Sidebar / Control Panel -->
@@ -18,7 +24,7 @@
                 <i class="fa-brands fa-steam steam-logo"></i>
                 <h2>Steam Analytics</h2>
             </div>
-            
+
             <div class="control-group">
                 <h3><i class="fa-solid fa-filter"></i> Filters</h3>
                 <div class="filter-item">
@@ -35,11 +41,11 @@
                 </div>
                 <button id="apply-filters" class="glow-button">Apply Filters</button>
             </div>
-            
+
             <div class="system-status">
                 <h3><i class="fa-solid fa-server"></i> System</h3>
                 <div class="status-item" id="live-status">
-                    <span class="status-dot"></span> 
+                    <span class="status-dot"></span>
                     <span id="update-status">Connecting...</span>
                 </div>
                 <div class="status-item pipeline-status" id="pipeline-badge">
@@ -110,7 +116,7 @@
                         <canvas id="lineChart"></canvas>
                     </div>
                 </div>
-                
+
                 <div class="chart-container glass-panel">
                     <div class="chart-header">
                         <h2><i class="fa-solid fa-ranking-star"></i> Top Games by Popularity</h2>
@@ -119,7 +125,16 @@
                         <canvas id="barChart"></canvas>
                     </div>
                 </div>
-                
+
+                <div class="chart-container glass-panel span-2">
+                    <div class="chart-header">
+                        <h2><i class="fa-solid fa-fire-flame-curved"></i> Top Games by Hardcore Fans (100+ hrs)</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="hardcoreChart"></canvas>
+                    </div>
+                </div>
+
                 <div class="chart-container glass-panel">
                     <div class="chart-header">
                         <h2><i class="fa-solid fa-shield-halved"></i> Data Quality (PySpark)</h2>
@@ -148,22 +163,56 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="chart-container glass-panel span-2">
+                    <div class="chart-header">
+                        <h2><i class="fa-solid fa-quote-left"></i> Trending Keywords in Reviews</h2>
+                    </div>
+                    <div class="chart-wrapper" style="height: 300px;">
+                        <canvas id="wordCloudCanvas" style="width: 100%; height: 100%;"></canvas>
+                    </div>
+                </div>
             </div>
 
             <!-- Data Table -->
             <div class="table-container glass-panel">
-                <div class="chart-header">
+                <div class="chart-header"
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <h2><i class="fa-solid fa-table-list"></i> Game Explorer</h2>
+                    <div class="table-controls" style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted);">Sort By:</label>
+                        <select id="table-sort-select" class="glass-input"
+                            style="padding: 0.4rem; font-size: 0.85rem; width: auto;">
+                            <option value="recommendations_total">Total Recommendations</option>
+                            <option value="total_reviews">Total Reviews</option>
+                            <option value="positive_rate">Positive Rate</option>
+                            <option value="avg_playtime_hours">Avg Playtime (hrs)</option>
+                            <option value="metacritic_score">Metacritic Score</option>
+                            <option value="price">Price</option>
+                        </select>
+                        <button id="table-sort-dir" class="icon-button" style="width: 32px; height: 32px;"
+                            title="Toggle Sort Direction">
+                            <i class="fa-solid fa-arrow-down-z-a"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="table-wrapper">
                     <table id="games-table">
                         <thead>
                             <tr>
                                 <th>Game Name</th>
-                                <th>Total Reviews</th>
-                                <th>Positive Rate</th>
-                                <th>Avg Playtime (hrs)</th>
-                                <th>Total Recommendations</th>
+                                <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">Total Reviews <i
+                                        class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="positive_rate" style="cursor: pointer;">Positive Rate <i
+                                        class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="avg_playtime_hours" style="cursor: pointer;">Avg
+                                    Playtime (hrs) <i class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="metacritic_score" style="cursor: pointer;">Metacritic <i
+                                        class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="price" style="cursor: pointer;">Price <i
+                                        class="fa-solid fa-sort"></i></th>
+                                <th class="sortable" data-sort="recommendations_total" style="cursor: pointer;">Total
+                                    Recommendations <i class="fa-solid fa-sort"></i></th>
                             </tr>
                         </thead>
                         <tbody id="games-tbody">
@@ -177,4 +226,5 @@
 
     <script src="/static/app.js"></script>
 </body>
+
 </html>

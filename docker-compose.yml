@@ -111,6 +111,8 @@ services:
       - DATA_PATH=/app/data/processed/daily_steam_reviews.parquet
       - TOP_GAMES_PATH=/app/data/processed/top_games.parquet
       - PIPELINE_STATUS_PATH=/app/data/processed/.pipeline_status.json
+      - HARDCORE_GAMES_PATH=/app/data/processed/hardcore_games.parquet
+      - COMMON_WORDS_PATH=/app/data/processed/common_words.parquet
     depends_on:
       dashboard_db:
         condition: service_healthy

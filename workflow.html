@@ -70,60 +70,68 @@
 
     <!-- กล่องแสดงผล Mermaid Diagram -->
     <div class="mermaid">
-flowchart TD
-    classDef rawData fill:#2a475e,stroke:#66c0f4,stroke-width:2px,color:#fff
-    classDef sparkJob fill:#e67e22,stroke:#d35400,stroke-width:2px,color:#fff
-    classDef parquetData fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff
-    classDef apiServer fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:#fff
-    classDef frontend fill:#2980b9,stroke:#3498db,stroke-width:2px,color:#fff
-    classDef jsonLog fill:#7f8c8d,stroke:#95a5a6,stroke-width:2px,color:#fff
+        flowchart TD
+        classDef rawData fill:#2a475e,stroke:#66c0f4,stroke-width:2px,color:#fff
+        classDef sparkJob fill:#e67e22,stroke:#d35400,stroke-width:2px,color:#fff
+        classDef parquetData fill:#27ae60,stroke:#2ecc71,stroke-width:2px,color:#fff
+        classDef apiServer fill:#8e44ad,stroke:#9b59b6,stroke-width:2px,color:#fff
+        classDef frontend fill:#2980b9,stroke:#3498db,stroke-width:2px,color:#fff
+        classDef jsonLog fill:#7f8c8d,stroke:#95a5a6,stroke-width:2px,color:#fff
 
-    subgraph DataSource ["1. Data Source"]
+        subgraph DataSource ["1. Data Source"]
         R1["reviews.csv"]:::rawData
         A1["applications.csv"]:::rawData
-    end
+        end
 
-    subgraph AirflowPipeline ["2. Apache Airflow and PySpark Pipeline"]
+        subgraph AirflowPipeline ["2. Apache Airflow and PySpark Pipeline"]
         C1["clean_data.py"]:::sparkJob
         C2["aggregate_data.py"]:::sparkJob
-        
-        R1 -->|"1. Read 500k rows"| C1
+
+        R1 -->|"1. Read full reviews"| C1
         A1 -->|"2. Read apps data"| C1
-        
+
         C1 -->|"3. Clean reviews"| CP1[("cleaned_reviews.parquet")]:::parquetData
         C1 -->|"4. Clean apps"| CP2[("cleaned_apps.parquet")]:::parquetData
         C1 -.->|"Log quality"| DQ["data_quality_log.json"]:::jsonLog
-        
+
         CP1 -->|"5. Use clean data"| C2
         CP2 -->|"5. Use clean data"| C2
-        
+
         C2 -->|"6. Daily Summary"| P1[("daily_steam_reviews.parquet")]:::parquetData
         C2 -->|"7. Top Games"| P2[("top_games.parquet")]:::parquetData
+        C2 -->|"8. Hardcore Fans"| P3[("hardcore_games.parquet")]:::parquetData
+        C2 -->|"9. Keywords (NLP)"| P4[("common_words.parquet")]:::parquetData
         C2 -.->|"Global stats"| S1["summary.json"]:::jsonLog
         C2 -.->|"Status update"| PS[".pipeline_status.json"]:::jsonLog
-    end
+        end
 
-    subgraph Backend ["3. FastAPI Backend (main.py)"]
+        subgraph Backend ["3. FastAPI Backend (main.py)"]
         API1["GET /api/dashboard-data"]:::apiServer
         API2["GET /api/top-games"]:::apiServer
         API3["GET /api/data-quality"]:::apiServer
         API4["GET /api/pipeline-status"]:::apiServer
-        
+        API5["GET /api/hardcore-games"]:::apiServer
+        API6["GET /api/common-words"]:::apiServer
+
         P1 -.->|"Read Parquet"| API1
         P2 -.->|"Read Parquet"| API2
+        P3 -.->|"Read Parquet"| API5
+        P4 -.->|"Read Parquet"| API6
         DQ -.->|"Read JSON"| API3
         PS -.->|"Read JSON"| API4
         S1 -.->|"Read JSON"| API1
-    end
+        end
 
-    subgraph Client ["4. Frontend Dashboard"]
+        subgraph Client ["4. Frontend Dashboard"]
         UI1["app.js, index.html, style.css"]:::frontend
-        
+
         API1 <-->|"Fetch Dashboard Data"| UI1
-        API2 <-->|"Fetch Top Games"| UI1
-        API3 <-->|"Fetch Data Quality"| UI1
-        API4 <-->|"Fetch Status"| UI1
-    end
+            API2 <-->|"Fetch Top Games"| UI1
+                API3 <-->|"Fetch Data Quality"| UI1
+                    API4 <-->|"Fetch Status"| UI1
+                        API5 <-->|"Fetch Hardcore Games"| UI1
+                            API6 <-->|"Fetch Keywords"| UI1
+                                end
     </div>
 
     <h2>คำอธิบายแต่ละขั้นตอน (Step-by-Step Flow)</h2>
@@ -150,8 +158,12 @@ flowchart TD
             <li><strong><code>aggregate_data.py</code></strong>:
                 <ul>
                     <li>นำไฟล์ที่สะอาดแล้วมา Group By เพื่อคำนวณจำนวนรีวิวเฉลี่ยรายวัน และหาเกมยอดฮิต</li>
-                    <li>บันทึกผลลัพธ์ลงเป็น <code>daily_steam_reviews.parquet</code> และ <code>top_games.parquet</code>
+                    <li><strong>Hardcore Fans Analysis</strong>: สรุปข้อมูลเกมยอดฮิตในกลุ่มผู้เล่นที่ใช้งานมากกว่า 100
+                        ชั่วโมง
                     </li>
+                    <li><strong>NLP Keyword Extraction</strong>: ใช้เทคนิคการแยกคำ (Tokenize) และกรอง Stop Words เพื่อหา
+                        "คำยอดฮิต" ในคอมเม้น</li>
+                    <li>บันทึกผลลัพธ์ลงเป็นไฟล์ Parquet แยกตามประเภทการวิเคราะห์</li>
                     <li>สร้างไฟล์ <code>summary.json</code> และ <code>.pipeline_status.json</code> บอกว่ารันเสร็จสมบูรณ์
                     </li>
                 </ul>
@@ -167,6 +179,8 @@ flowchart TD
                 Start/End จากหน้าเว็บมากรองข้อมูลด้วย Pandas ได้)</li>
             <li><strong><code>/api/top-games</code></strong>: ส่งข้อมูลเกมฮิต โดยรับค่าชื่อเกม (Search)
                 จากหน้าเว็บมากรองได้</li>
+            <li><strong><code>/api/hardcore-games</code></strong>: ส่งข้อมูลเกมยอดฮิตในกลุ่มแฟนพันธุ์แท้ (100+ ชม.)</li>
+            <li><strong><code>/api/common-words</code></strong>: ส่งข้อมูลคำนิยม (Keywords) ที่ได้จากกระบวนการ NLP</li>
             <li><strong><code>/api/data-quality</code></strong>: ส่งค่า Log คุณภาพข้อมูลให้หน้าเว็บแสดงผล</li>
         </ul>
     </div>
@@ -177,8 +191,13 @@ flowchart TD
             <li><strong><code>app.js</code></strong> จะดึงข้อมูล (Fetch) จาก Backend ทั้ง 4 API มารวมกัน</li>
             <li>หากไม่ได้เลือกวันที่ ระบบจะไม่ส่งวันที่ไปให้ API ทำให้ Backend ส่งข้อมูล 90 วันล่าสุดกลับมาอัตโนมัติ
             </li>
-            <li>นำข้อมูลไปอัปเดตกราฟแท่ง, กราฟเส้น, ตารางค้นหาเกม และอัปเดตหน้าจอผ่าน <code>index.html</code> และ
-                <code>style.css</code> แบบ Real-time
+            <li>นำข้อมูลไปแสดงผลบนกราฟต่างๆ:
+                <ul>
+                    <li><strong>Reviews Trend</strong>: กราฟเส้น (Line Chart)</li>
+                    <li><strong>Top Games</strong>: กราฟแท่งแนวนอน (Horizontal Bar Chart) แยก Positive/Negative</li>
+                    <li><strong>Hardcore Fans</strong>: กราฟแท่งแนวนอนแสดงความนิยมในหมู่ผู้เล่นเกิน 100 ชม.</li>
+                    <li><strong>Trending Keywords</strong>: กราฟแท่งแสดงคำยอดนิยมจากรีวิว</li>
+                </ul>
             </li>
         </ul>
     </div>

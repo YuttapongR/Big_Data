@@ -35,12 +35,9 @@ def clean_steam_data():
             escape='"'
         )
         
-        # สมมติฐาน: ผู้ใช้ต้องการอ่านข้อมูลทีละ 500,000 หรือสุ่ม 500,000 แถวมาประมวลผล
-        # ใช้ limit 500,000 ตามที่ผู้ใช้แจ้ง
         original_count = reviews_df.count()
-        reviews_df = reviews_df.limit(500000)
         
-        print(f"📥 Found {original_count:,} reviews. Limiting to 500,000 rows as requested.")
+        print(f"📥 Found {original_count:,} reviews. Processing all rows.")
         
         # 1. ลบ null ในคอลัมน์สำคัญ
         reviews_df = reviews_df.dropna(subset=["appid", "author_steamid", "voted_up", "timestamp_created"])
@@ -83,7 +80,7 @@ def clean_steam_data():
         
         # Write to Parquet
         reviews_df.write.mode("overwrite").parquet(cleaned_reviews_path)
-        print(f"✅ Reviews cleaned: 500,000 → {cleaned_count:,} (removed {500000 - cleaned_count:,} invalid rows)")
+        print(f"✅ Reviews cleaned: {original_count:,} → {cleaned_count:,} (removed {original_count - cleaned_count:,} invalid rows)")
         
     except Exception as e:
         print(f"❌ Error processing reviews: {str(e)}")
@@ -134,9 +131,9 @@ def clean_steam_data():
         # Save error summary
         error_log = {
             "reviews_total_scanned": original_count,
-            "reviews_processed_limit": 500000,
+            "reviews_processed_limit": original_count,
             "reviews_cleaned_count": cleaned_count,
-            "reviews_dropped": 500000 - cleaned_count,
+            "reviews_dropped": original_count - cleaned_count,
             "apps_total": original_apps_count,
             "apps_cleaned": cleaned_apps_count,
             "apps_dropped": original_apps_count - cleaned_apps_count

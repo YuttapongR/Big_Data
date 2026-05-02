@@ -1,6 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // API URL Base (relative to host)
-    const API_BASE = '/api';
+    // API URL Base (handle local file opened directly or via Live Server on arbitrary ports)
+    let API_BASE = '/api';
+    if (window.location.protocol === 'file:') {
+        API_BASE = 'http://localhost:8000/api';
+    } else if (window.location.port && window.location.port !== '8000') {
+        // Accessing from a different port (e.g. Live Server), target port 8000
+        API_BASE = `http://${window.location.hostname}:8000/api`;
+    }
 
     // DOM Elements
     const elements = {
@@ -24,12 +30,22 @@ document.addEventListener('DOMContentLoaded', () => {
         dqReviewsClean: document.getElementById('dq-reviews-clean'),
         dqReviewsDrop: document.getElementById('dq-reviews-drop'),
         dqAppsTotal: document.getElementById('dq-apps-total'),
-        dqAppsClean: document.getElementById('dq-apps-clean')
+        dqAppsClean: document.getElementById('dq-apps-clean'),
+        // Sorting Controls
+        sortSelect: document.getElementById('table-sort-select'),
+        sortDirBtn: document.getElementById('table-sort-dir')
     };
 
     // Chart Instances
     let lineChart = null;
     let barChart = null;
+    let hardcoreChart = null;
+    let wordChart = null;
+
+    // State
+    let currentGamesData = [];
+    let currentSortCol = 'recommendations_total';
+    let currentSortDir = -1; // -1 for desc, 1 for asc
 
     // Theme colors for Chart.js
     const chartTheme = {
@@ -75,15 +91,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const gamesRes = await fetch(gamesUrl);
             const gamesData = await gamesRes.json();
 
+            currentGamesData = gamesData.data;
+
             updateKPIs(dashData);
             updateLineChart(dashData.data);
-            updateBarChart(gamesData.data);
-            updateGamesTable(gamesData.data);
+            updateBarChart(currentGamesData);
+            
+            // Fetch Hardcore Games Data
+            try {
+                const hcRes = await fetch(`${API_BASE}/hardcore-games`);
+                const hcData = await hcRes.json();
+                updateHardcoreChart(hcData.data);
+            } catch (e) { console.warn("Hardcore Games API not ready yet"); }
+
+            // Fetch Keywords Data
+            try {
+                const wordRes = await fetch(`${API_BASE}/common-words`);
+                const wordData = await wordRes.json();
+                updateWordChart(wordData.data);
+            } catch (e) { console.warn("Keywords API not ready yet"); }
+
+            sortAndRenderGamesTable();
 
             setStatus('online', dashData.is_mock);
         } catch (error) {
-            console.error('Error fetching data:', error);
-            setStatus('error');
+            console.error('Error fetching data from API:', error);
+            const errorMsg = error.message || 'Connection Error';
+            elements.statusText.textContent = `Error: ${errorMsg}`;
+            const dot = elements.statusBadge.querySelector('.status-dot');
+            dot.style.backgroundColor = '#ef4444';
+            dot.style.boxShadow = '0 0 8px #ef4444';
         }
     }
 
@@ -169,20 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Total Reviews',
-                        data: total,
-                        borderColor: chartTheme.totalColor,
-                        backgroundColor: chartTheme.totalColor,
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: false,
-                        pointRadius: 0
-                    },
-                    {
                         label: 'Positive',
                         data: positive,
                         borderColor: chartTheme.positiveColor,
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.25)',
                         borderWidth: 2,
                         tension: 0.4,
                         fill: true,
@@ -192,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         label: 'Negative',
                         data: negative,
                         borderColor: chartTheme.negativeColor,
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.25)',
                         borderWidth: 2,
                         tension: 0.4,
                         fill: true,
@@ -209,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 scales: {
                     x: { grid: { color: chartTheme.gridColor } },
-                    y: { grid: { color: chartTheme.gridColor } }
+                    y: { stacked: true, grid: { color: chartTheme.gridColor }, beginAtZero: true }
                 },
                 plugins: {
                     legend: { position: 'top' },
@@ -228,8 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Bar Chart
     function updateBarChart(data) {
         const ctx = document.getElementById('barChart').getContext('2d');
-        // Top 10 for bar chart
-        const top10 = data.slice(0, 10);
+        // Top 10 for bar chart, sorted by total reviews descending
+        const top10 = [...data].sort((a, b) => b.total_reviews - a.total_reviews).slice(0, 10);
         const labels = top10.map(d => d.name);
         const positive = top10.map(d => d.positive_reviews);
         const negative = top10.map(d => d.negative_reviews);
@@ -254,11 +281,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { stacked: true, grid: { color: chartTheme.gridColor }, ticks: { maxRotation: 45, minRotation: 45 } },
-                    y: { stacked: true, grid: { color: chartTheme.gridColor } }
+                    x: { grid: { color: chartTheme.gridColor } },
+                    y: { grid: { color: chartTheme.gridColor }, ticks: { autoSkip: false } }
                 },
                 plugins: {
                     legend: { position: 'top' },
@@ -272,12 +300,143 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Update Hardcore Fans Chart
+    function updateHardcoreChart(data) {
+        const ctx = document.getElementById('hardcoreChart');
+        if (!ctx) return;
+
+        if (!data || data.length === 0) {
+            if (hardcoreChart) hardcoreChart.destroy();
+            return;
+        }
+
+        const labels = data.map(d => d.name);
+        const counts = data.map(d => d.hardcore_reviews);
+
+        if (hardcoreChart) hardcoreChart.destroy();
+
+        hardcoreChart = new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Reviews by Hardcore Fans',
+                        data: counts,
+                        backgroundColor: 'rgba(243, 156, 18, 0.7)',
+                        borderColor: '#f39c12',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: chartTheme.gridColor },
+                        ticks: { color: chartTheme.textColor },
+                        title: { display: true, text: 'Number of Reviews (100+ hrs)', color: chartTheme.textColor }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: chartTheme.textColor }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(26, 30, 41, 0.9)',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1
+                    }
+                }
+            }
+        });
+    }
+
+    // Update Word Cloud Chart
+    function updateWordChart(data) {
+        const canvas = document.getElementById('wordCloudCanvas');
+        if (!canvas) return;
+
+        if (!data || data.length === 0) return;
+
+        // Transform data for WordCloud2: [['word', count], ...]
+        const maxCount = Math.max(...data.map(d => d.count));
+        const list = data.map(d => [d.word, Math.max(12, (d.count / maxCount) * 60)]);
+
+        WordCloud(canvas, {
+            list: list,
+            gridSize: 8,
+            weightFactor: 1,
+            fontFamily: 'Outfit, sans-serif',
+            color: function () {
+                const colors = ['#66c0f4', '#4b7399', '#10b981', '#a34bb9', '#f39c12'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            },
+            rotateRatio: 0.3,
+            rotationSteps: 2,
+            backgroundColor: 'transparent',
+            shuffle: true
+        });
+    }
+
+    // Sorting Logic
+    function sortAndRenderGamesTable() {
+        if (!currentGamesData || currentGamesData.length === 0) {
+            updateGamesTable([]);
+            return;
+        }
+
+        currentGamesData.sort((a, b) => {
+            let valA = a[currentSortCol];
+            let valB = b[currentSortCol];
+
+            // Convert to number for numeric columns
+            if (currentSortCol !== 'name') {
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
+            } else {
+                valA = String(valA || '').toLowerCase();
+                valB = String(valB || '').toLowerCase();
+            }
+
+            if (valA < valB) return -1 * currentSortDir;
+            if (valA > valB) return 1 * currentSortDir;
+            return 0;
+        });
+
+        updateGamesTable(currentGamesData);
+        updateSortIcons();
+    }
+
+    function updateSortIcons() {
+        if (elements.sortSelect) {
+            elements.sortSelect.value = currentSortCol;
+        }
+        if (elements.sortDirBtn) {
+            elements.sortDirBtn.innerHTML = currentSortDir === -1 ? '<i class="fa-solid fa-arrow-down-z-a"></i>' : '<i class="fa-solid fa-arrow-up-a-z"></i>';
+        }
+        document.querySelectorAll('th.sortable').forEach(th => {
+            const icon = th.querySelector('i');
+            icon.className = 'fa-solid fa-sort'; // reset
+            if (th.dataset.sort === currentSortCol) {
+                icon.className = currentSortDir === -1 ? 'fa-solid fa-sort-down' : 'fa-solid fa-sort-up';
+            }
+        });
+    }
+
     // Update Games Table
     function updateGamesTable(data) {
         elements.gamesTbody.innerHTML = '';
 
         if (data.length === 0) {
-            elements.gamesTbody.innerHTML = `<tr><td colspan="5" style="text-align:center">No games found</td></tr>`;
+            elements.gamesTbody.innerHTML = `<tr><td colspan="7" style="text-align:center">No games found</td></tr>`;
             return;
         }
 
@@ -294,6 +453,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${fmt(game.total_reviews)}</td>
                 <td class="${prClass}">${game.positive_rate}%</td>
                 <td>${game.avg_playtime_hours}</td>
+                <td>${game.metacritic_score > 0 ? game.metacritic_score : '-'}</td>
+                <td>${Number(game.price) > 0 ? '$' + Number(game.price).toFixed(2) : (game.is_free ? 'Free' : '-')}</td>
                 <td>${fmt(game.recommendations_total)}</td>
             `;
             elements.gamesTbody.appendChild(tr);
@@ -318,11 +479,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Event Listeners
     elements.refreshBtn.addEventListener('click', initDashboard);
     elements.applyFiltersBtn.addEventListener('click', initDashboard);
     elements.gameSearch.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') initDashboard();
+    });
+
+    if (elements.sortSelect) {
+        elements.sortSelect.addEventListener('change', (e) => {
+            currentSortCol = e.target.value;
+            sortAndRenderGamesTable();
+        });
+    }
+
+    if (elements.sortDirBtn) {
+        elements.sortDirBtn.addEventListener('click', () => {
+            currentSortDir *= -1;
+            sortAndRenderGamesTable();
+        });
+    }
+
+    document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = th.dataset.sort;
+            if (currentSortCol === col) {
+                currentSortDir *= -1; // toggle
+            } else {
+                currentSortCol = col;
+                currentSortDir = -1; // default desc
+            }
+            sortAndRenderGamesTable();
+        });
     });
 
     // Start
