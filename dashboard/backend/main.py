@@ -25,6 +25,8 @@ TOP_GAMES_PATH = os.environ.get("TOP_GAMES_PATH", os.path.join(os.path.dirname(_
 PIPELINE_STATUS_PATH = os.environ.get("PIPELINE_STATUS_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/.pipeline_status.json"))
 SUMMARY_PATH = os.path.join(os.path.dirname(DATA_PATH), "summary.json")
 DATA_QUALITY_PATH = os.path.join(os.path.dirname(DATA_PATH), "data_quality_log.json")
+HARDCORE_GAMES_PATH = os.environ.get("HARDCORE_GAMES_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/hardcore_games.parquet"))
+COMMON_WORDS_PATH = os.environ.get("COMMON_WORDS_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/common_words.parquet"))
 
 # Resolve paths
 DATA_PATH = os.path.abspath(DATA_PATH)
@@ -32,6 +34,8 @@ TOP_GAMES_PATH = os.path.abspath(TOP_GAMES_PATH)
 PIPELINE_STATUS_PATH = os.path.abspath(PIPELINE_STATUS_PATH)
 SUMMARY_PATH = os.path.abspath(SUMMARY_PATH)
 DATA_QUALITY_PATH = os.path.abspath(DATA_QUALITY_PATH)
+HARDCORE_GAMES_PATH = os.path.abspath(HARDCORE_GAMES_PATH)
+COMMON_WORDS_PATH = os.path.abspath(COMMON_WORDS_PATH)
 
 @app.get("/api/dashboard-data")
 async def get_dashboard_data(
@@ -93,6 +97,33 @@ async def get_top_games(search: Optional[str] = None, limit: int = Query(50, le=
             print(f"Error reading top games parquet: {e}")
 
     return {"data": [], "is_mock": False, "count": 0}
+
+@app.get("/api/hardcore-games")
+async def get_hardcore_games():
+    """ดึงข้อมูลเกมยอดฮิตในหมู่แฟนพันธุ์แท้ (100+ ชั่วโมง)"""
+    if os.path.exists(HARDCORE_GAMES_PATH):
+        try:
+            df = pd.read_parquet(HARDCORE_GAMES_PATH)
+            df = df.fillna(0)
+            records = df.to_dict(orient="records")
+            return {"data": records, "is_mock": False}
+        except Exception as e:
+            print(f"Error reading hardcore games parquet: {e}")
+
+    return {"data": [], "is_mock": False}
+
+@app.get("/api/common-words")
+async def get_common_words():
+    """ดึงข้อมูลคำยอดนิยมที่พบในรีวิว"""
+    if os.path.exists(COMMON_WORDS_PATH):
+        try:
+            df = pd.read_parquet(COMMON_WORDS_PATH)
+            records = df.to_dict(orient="records")
+            return {"data": records, "is_mock": False}
+        except Exception as e:
+            print(f"Error reading common words parquet: {e}")
+
+    return {"data": [], "is_mock": False}
 
 @app.get("/api/data-quality")
 async def get_data_quality():
