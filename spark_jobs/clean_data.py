@@ -97,7 +97,8 @@ def clean_steam_data():
             header=True,
             inferSchema=True,
             mode="DROPMALFORMED",
-            escape='"'
+            escape='"',
+            multiLine=True
         )
         
         original_apps_count = apps_df.count()
@@ -119,7 +120,9 @@ def clean_steam_data():
         apps_df = apps_df.select(
             "appid", "name", "type", "is_free", "release_date",
             "metacritic_score", "recommendations_total",
-            "mat_final_price", "mat_currency"
+            "mat_final_price", "mat_currency",
+            "supported_languages", "mat_supports_windows", 
+            "mat_supports_mac", "mat_supports_linux", "mat_achievement_count"
         )
 
         cleaned_apps_count = apps_df.count()

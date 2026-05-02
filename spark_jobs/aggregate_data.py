@@ -136,7 +136,61 @@ def aggregate_steam_data():
         keywords_df.coalesce(1).write.mode("overwrite").parquet(keywords_path)
         print(f"✅ Common words: {keywords_count} words extracted → {keywords_path}")
 
-        # ===== Aggregation 5: Global Summary =====
+        # ===== Aggregation 5: Games Analytics (For Dashboard Slicers & Charts) =====
+        print("⏳ Aggregating games analytics for dashboard...")
+        try:
+            raw_dir = "/opt/airflow/data/raw"
+            app_genres_df = spark.read.csv(os.path.join(raw_dir, "application_genres.csv"), header=True, inferSchema=True)
+            genres_name_df = spark.read.csv(os.path.join(raw_dir, "genres.csv"), header=True, inferSchema=True)
+            first_genre_df = app_genres_df.join(genres_name_df, app_genres_df.genre_id == genres_name_df.id, "inner") \
+                .groupBy("appid").agg(first("name").alias("genre"))
+        except Exception as e:
+            print(f"Warning: Could not read genre data: {e}")
+            from pyspark.sql.functions import lit
+            first_genre_df = apps_df.select("appid").withColumn("genre", lit("Unknown"))
+
+        analytics_apps = apps_df.select(
+            "appid", "name", "release_date", "mat_final_price", "recommendations_total", "metacritic_score",
+            "supported_languages", "mat_supports_windows", "mat_supports_mac", "mat_supports_linux",
+            "mat_achievement_count", "mat_pc_os_min"
+        )
+        
+        analytics_apps = analytics_apps.join(first_genre_df, "appid", "left")
+            
+        app_reviews_agg = reviews_df.groupBy("appid").agg(
+            count("recommendationid").alias("total_reviews"),
+            _sum(col("is_positive").cast("int")).alias("positive_reviews"),
+            round(mean("playtime_hours"), 1).alias("avg_playtime_hours")
+        )
+        
+        analytics_df = analytics_apps.join(app_reviews_agg, "appid", "inner")
+        
+        from pyspark.sql.functions import year, coalesce, size, lit
+        
+        analytics_df = analytics_df.withColumn("release_year", year("release_date"))
+        analytics_df = analytics_df.withColumn("positive_rate", round((col("positive_reviews") / col("total_reviews")) * 100, 1))
+        analytics_df = analytics_df.withColumn("price", coalesce(col("mat_final_price"), lit(0.0)))
+        analytics_df = analytics_df.withColumn("estimated_revenue", col("price") * col("total_reviews") * 30)
+        analytics_df = analytics_df.withColumn("language_count", size(split(col("supported_languages"), ",")))
+        
+        # แก้ไข OS Support ที่ผิดพลาดจากข้อมูลดิบ
+        from pyspark.sql.functions import when, lower
+        analytics_df = analytics_df.withColumn("mat_supports_mac", 
+            when(lower(col("mat_pc_os_min")).contains("mac") | lower(col("mat_pc_os_min")).contains("osx"), True)
+            .otherwise(False)
+        )
+        analytics_df = analytics_df.withColumn("mat_supports_linux", 
+            when(lower(col("mat_pc_os_min")).contains("linux") | lower(col("mat_pc_os_min")).contains("ubuntu") | lower(col("mat_pc_os_min")).contains("steamos"), True)
+            .otherwise(False)
+        )
+        
+        analytics_df = analytics_df.orderBy(col("total_reviews").desc()).limit(5000)
+        
+        analytics_path = os.path.join(processed_dir, "games_analytics.parquet")
+        analytics_df.coalesce(1).write.mode("overwrite").parquet(analytics_path)
+        print(f"✅ Games analytics: 5000 rows → {analytics_path}")
+
+        # ===== Aggregation 6: Global Summary =====
         print("⏳ Generating global summary...")
         positive_count = reviews_df.filter(col("is_positive") == True).count()
         positive_rate = float(f"{(positive_count / total_reviews) * 100:.1f}") if total_reviews > 0 else 0.0

@@ -68,6 +68,25 @@ h6 {
     height: calc(100vh - 3rem);
     position: sticky;
     top: 1.5rem;
+    overflow-y: auto;
+}
+
+/* Custom scrollbar for sidebar to keep the glassmorphism look clean */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .main-content {
@@ -344,6 +363,10 @@ select.glass-input option {
     grid-column: span 2;
 }
 
+.span-3 {
+    grid-column: span 3;
+}
+
 .chart-container {
     display: flex;
     flex-direction: column;
@@ -404,6 +427,8 @@ select.glass-input option {
 /* ===== Table ===== */
 .table-wrapper {
     overflow-x: auto;
+    max-height: 500px;
+    overflow-y: auto;
 }
 
 table {
@@ -436,6 +461,10 @@ tbody tr:hover {
     }
 
     .span-2 {
+        grid-column: span 1;
+    }
+
+    .span-3 {
         grid-column: span 1;
     }
 }

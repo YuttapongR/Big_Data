@@ -113,6 +113,7 @@ services:
       - PIPELINE_STATUS_PATH=/app/data/processed/.pipeline_status.json
       - HARDCORE_GAMES_PATH=/app/data/processed/hardcore_games.parquet
       - COMMON_WORDS_PATH=/app/data/processed/common_words.parquet
+      - GAMES_ANALYTICS_PATH=/app/data/processed/games_analytics.parquet
     depends_on:
       dashboard_db:
         condition: service_healthy

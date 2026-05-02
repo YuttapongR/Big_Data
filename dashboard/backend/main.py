@@ -125,6 +125,36 @@ async def get_common_words():
 
     return {"data": [], "is_mock": False}
 
+@app.get("/api/games-analytics")
+async def get_games_analytics(
+    genre: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    year: Optional[int] = None
+):
+    """ดึงข้อมูลเกมสำหรับ Dashboard กราฟทั้งหมด (มี Slicers)"""
+    analytics_path = os.path.abspath(os.environ.get("GAMES_ANALYTICS_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/games_analytics.parquet")))
+    if os.path.exists(analytics_path):
+        try:
+            df = pd.read_parquet(analytics_path)
+            
+            if genre and genre != 'All':
+                df = df[df['genre'] == genre]
+            if min_price is not None:
+                df = df[df['price'] >= min_price]
+            if max_price is not None:
+                df = df[df['price'] <= max_price]
+            if year and year != 'All':
+                df = df[df['release_year'] == int(year)]
+                
+            df = df.fillna(0)
+            records = df.to_dict(orient="records")
+            return {"data": records, "is_mock": False, "count": len(records)}
+        except Exception as e:
+            print(f"Error reading games analytics parquet: {e}")
+
+    return {"data": [], "is_mock": False, "count": 0}
+
 @app.get("/api/data-quality")
 async def get_data_quality():
     """ดึงข้อมูล Quality log ที่ PySpark สรุปไว้ตอน Clean"""

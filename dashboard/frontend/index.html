@@ -22,38 +22,54 @@
         <aside class="sidebar glass-panel">
             <div class="brand">
                 <i class="fa-brands fa-steam steam-logo"></i>
-                <h2>Steam Analytics</h2>
+                <h2>สถิติ Steam</h2>
             </div>
 
             <div class="control-group">
-                <h3><i class="fa-solid fa-filter"></i> Filters</h3>
+                <h3><i class="fa-solid fa-filter"></i> ตัวกรอง</h3>
                 <div class="filter-item">
-                    <label for="date-start">Start Date</label>
+                    <label for="date-start">วันที่เริ่มต้น</label>
                     <input type="date" id="date-start" class="glass-input">
                 </div>
                 <div class="filter-item">
-                    <label for="date-end">End Date</label>
+                    <label for="date-end">วันที่สิ้นสุด</label>
                     <input type="date" id="date-end" class="glass-input">
                 </div>
                 <div class="filter-item">
-                    <label for="game-search">Search Games</label>
+                    <label for="game-search">ค้นหาชื่อเกม</label>
                     <input type="text" id="game-search" class="glass-input" placeholder="e.g. Dota 2, Cyberpunk...">
                 </div>
-                <button id="apply-filters" class="glow-button">Apply Filters</button>
+                <div class="filter-item">
+                    <label for="slicer-genre">แนวเกม (Genre)</label>
+                    <select id="slicer-genre" class="glass-input">
+                        <option value="All">ทุกแนวเกม</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label for="slicer-year">ปีที่วางจำหน่าย</label>
+                    <select id="slicer-year" class="glass-input">
+                        <option value="All">ทุกปี</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label for="slicer-price">ราคาสูงสุด ($)</label>
+                    <input type="number" id="slicer-price" class="glass-input" placeholder="e.g. 60" min="0">
+                </div>
+                <button id="apply-filters" class="glow-button">ใช้ตัวกรอง</button>
             </div>
 
             <div class="system-status">
-                <h3><i class="fa-solid fa-server"></i> System</h3>
+                <h3><i class="fa-solid fa-server"></i> สถานะระบบ</h3>
                 <div class="status-item" id="live-status">
                     <span class="status-dot"></span>
-                    <span id="update-status">Connecting...</span>
+                    <span id="update-status">กำลังเชื่อมต่อ...</span>
                 </div>
                 <div class="status-item pipeline-status" id="pipeline-badge">
                     <i class="fa-solid fa-rotate"></i>
-                    <span id="pipeline-status-text">Pipeline: Checking</span>
+                    <span id="pipeline-status-text">Pipeline: กำลังตรวจสอบ</span>
                 </div>
                 <div class="last-update">
-                    <small id="last-update-time">Last update: --</small>
+                    <small id="last-update-time">อัปเดตล่าสุด: --</small>
                 </div>
             </div>
         </aside>
@@ -62,8 +78,8 @@
         <main class="main-content">
             <header class="top-header glass-panel">
                 <div class="header-titles">
-                    <h1>Real-time Multi-Modal Gaming Analytics</h1>
-                    <p>Powered by PySpark, Parquet & Airflow (Steam Dataset 2025)</p>
+                    <h1>วิเคราะห์ข้อมูลเกมแบบ Multi-Modal</h1>
+                    <p>ขับเคลื่อนด้วย PySpark, Parquet & Airflow (Steam Dataset 2025)</p>
                 </div>
                 <div class="header-actions">
                     <button id="refresh-btn" class="icon-button"><i class="fa-solid fa-rotate-right"></i></button>
@@ -75,150 +91,225 @@
                 <div class="kpi-card glass-panel" id="card-reviews">
                     <div class="kpi-icon blue-glow"><i class="fa-solid fa-comments"></i></div>
                     <div class="kpi-info">
-                        <h3>Total Reviews Processed</h3>
+                        <h3>จำนวนรีวิวทั้งหมด</h3>
                         <h2 id="total-reviews">--</h2>
-                        <span class="trend" id="trend-reviews">Global dataset</span>
+                        <span class="trend" id="trend-reviews">ชุดข้อมูล Global</span>
                     </div>
                 </div>
                 <div class="kpi-card glass-panel" id="card-positive">
                     <div class="kpi-icon green-glow"><i class="fa-solid fa-thumbs-up"></i></div>
                     <div class="kpi-info">
-                        <h3>Global Positive Rate</h3>
+                        <h3>อัตรารีวิวดี (Global)</h3>
                         <h2 id="positive-rate">--</h2>
-                        <span class="trend" id="trend-positive">Across all games</span>
+                        <span class="trend" id="trend-positive">จากทุกเกมในระบบ</span>
                     </div>
                 </div>
                 <div class="kpi-card glass-panel" id="card-playtime">
                     <div class="kpi-icon purple-glow"><i class="fa-solid fa-users"></i></div>
                     <div class="kpi-info">
-                        <h3>Unique Reviewers</h3>
+                        <h3>ผู้รีวิวที่ไม่ซ้ำกัน</h3>
                         <h2 id="unique-reviewers">--</h2>
-                        <span class="trend" id="trend-playtime">Steam users</span>
+                        <span class="trend" id="trend-playtime">ผู้ใช้ Steam</span>
                     </div>
                 </div>
                 <div class="kpi-card glass-panel" id="card-games">
                     <div class="kpi-icon pink-glow"><i class="fa-solid fa-gamepad"></i></div>
                     <div class="kpi-info">
-                        <h3>Games Indexed</h3>
+                        <h3>เกมที่บันทึกข้อมูล</h3>
                         <h2 id="unique-games">--</h2>
-                        <span class="trend" id="trend-games">applications.csv</span>
+                        <span class="trend" id="trend-games">จาก applications.csv</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="dashboard-tabs"
+                style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+                <button class="tab-btn active glow-button" data-tab="tab-market"
+                    style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-color); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">ตลาด
+                    และแนวโน้ม</button>
+                <button class="tab-btn" data-tab="tab-quality"
+                    style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">คุณภาพ
+                    และความรู้สึก</button>
+                <button class="tab-btn" data-tab="tab-revenue"
+                    style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">รายได้
+                    และการค้า</button>
+                <button class="tab-btn" data-tab="tab-technical"
+                    style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">ข้อมูลทางเทคนิค</button>
+                <button class="tab-btn" data-tab="tab-pipeline"
+                    style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">ไปป์ไลน์
+                    (Pipeline)</button>
             </div>
 
             <!-- Charts Section -->
-            <div class="charts-grid">
-                <div class="chart-container glass-panel span-2">
-                    <div class="chart-header">
-                        <h2><i class="fa-solid fa-chart-area"></i> Reviews Trend (90 Days)</h2>
+            <div id="tab-market" class="tab-content active-tab">
+                <div class="charts-grid">
+                    <div class="chart-container glass-panel span-3">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-chart-bar"></i> ตลาด: การกระจายตัวของแนวเกม (ฟรี vs จ่ายเงิน)</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="genreBarChart"></canvas>
+                        </div>
                     </div>
-                    <div class="chart-wrapper">
-                        <canvas id="lineChart"></canvas>
-                    </div>
-                </div>
 
-                <div class="chart-container glass-panel">
-                    <div class="chart-header">
-                        <h2><i class="fa-solid fa-ranking-star"></i> Top Games by Popularity</h2>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="barChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container glass-panel span-2">
-                    <div class="chart-header">
-                        <h2><i class="fa-solid fa-fire-flame-curved"></i> Top Games by Hardcore Fans (100+ hrs)</h2>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="hardcoreChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="chart-container glass-panel">
-                    <div class="chart-header">
-                        <h2><i class="fa-solid fa-shield-halved"></i> Data Quality (PySpark)</h2>
-                    </div>
-                    <div class="data-quality-content">
-                        <div class="quality-row">
-                            <span>Total Reviews Read</span>
-                            <strong id="dq-reviews-total">--</strong>
+                    <div class="chart-container glass-panel span-3">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-chart-area"></i> แนวโน้ม: จำนวนเกมที่วางจำหน่ายตามช่วงเวลา</h2>
                         </div>
-                        <div class="quality-row">
-                            <span>Cleaned Reviews (Parquet)</span>
-                            <strong class="success-text" id="dq-reviews-clean">--</strong>
-                        </div>
-                        <div class="quality-row">
-                            <span>Malformed/Dropped</span>
-                            <strong class="danger-text" id="dq-reviews-drop">--</strong>
-                        </div>
-                        <hr class="glass-divider">
-                        <div class="quality-row">
-                            <span>Apps Scanned</span>
-                            <strong id="dq-apps-total">--</strong>
-                        </div>
-                        <div class="quality-row">
-                            <span>Apps Kept</span>
-                            <strong class="success-text" id="dq-apps-clean">--</strong>
+                        <div class="chart-wrapper">
+                            <canvas id="releaseAreaChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <div class="chart-container glass-panel span-2">
-                    <div class="chart-header">
-                        <h2><i class="fa-solid fa-quote-left"></i> Trending Keywords in Reviews</h2>
+                <!-- Game Explorer (Only in Market & Trend) -->
+                <div class="table-container glass-panel" style="margin-top: 1.5rem;">
+                    <div class="chart-header"
+                        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <h2><i class="fa-solid fa-table-list"></i> ตารางสำรวจข้อมูลเกม</h2>
+                        <div class="table-controls" style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);"><i
+                                    class="fa-solid fa-hand-pointer"></i> คลิกที่หัวตารางเพื่อเรียงข้อมูล</span>
+                        </div>
                     </div>
-                    <div class="chart-wrapper" style="height: 300px;">
-                        <canvas id="wordCloudCanvas" style="width: 100%; height: 100%;"></canvas>
+                    <div class="table-wrapper">
+                        <table id="games-table">
+                            <thead>
+                                <tr>
+                                    <th>ชื่อเกม</th>
+                                    <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">รีวิวทั้งหมด
+                                        <i class="fa-solid fa-sort"></i>
+                                    </th>
+                                    <th class="sortable" data-sort="positive_rate" style="cursor: pointer;">อัตรารีวิว
+                                        <i class="fa-solid fa-sort"></i>
+                                    </th>
+                                    <th class="sortable" data-sort="avg_playtime_hours" style="cursor: pointer;">
+                                        เวลาเล่นเฉลี่ย <i class="fa-solid fa-sort"></i></th>
+                                    <th class="sortable" data-sort="price" style="cursor: pointer;">ราคา <i
+                                            class="fa-solid fa-sort"></i></th>
+                                    <th class="sortable" data-sort="recommendations_total" style="cursor: pointer;">
+                                        คำแนะนำ <i class="fa-solid fa-sort-down"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody id="games-tbody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Data Table -->
-            <div class="table-container glass-panel">
-                <div class="chart-header"
-                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                    <h2><i class="fa-solid fa-table-list"></i> Game Explorer</h2>
-                    <div class="table-controls" style="display: flex; gap: 0.5rem; align-items: center;">
-                        <label style="font-size: 0.85rem; color: var(--text-muted);">Sort By:</label>
-                        <select id="table-sort-select" class="glass-input"
-                            style="padding: 0.4rem; font-size: 0.85rem; width: auto;">
-                            <option value="recommendations_total">Total Recommendations</option>
-                            <option value="total_reviews">Total Reviews</option>
-                            <option value="positive_rate">Positive Rate</option>
-                            <option value="avg_playtime_hours">Avg Playtime (hrs)</option>
-                            <option value="metacritic_score">Metacritic Score</option>
-                            <option value="price">Price</option>
-                        </select>
-                        <button id="table-sort-dir" class="icon-button" style="width: 32px; height: 32px;"
-                            title="Toggle Sort Direction">
-                            <i class="fa-solid fa-arrow-down-z-a"></i>
-                        </button>
+            <div id="tab-quality" class="tab-content" style="display: none;">
+                <div class="charts-grid">
+                    <div class="chart-container glass-panel span-2">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-scatter-plot"></i> คุณภาพ: ราคาเทียบกับคะแนน</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="priceScoreScatterChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container glass-panel">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-quote-left"></i> ความรู้สึก: คำยอดนิยมในรีวิว</h2>
+                        </div>
+                        <div class="chart-wrapper" style="height: 350px;">
+                            <canvas id="wordCloudCanvas" style="width: 100%; height: 100%;"></canvas>
+                        </div>
                     </div>
                 </div>
-                <div class="table-wrapper">
-                    <table id="games-table">
-                        <thead>
-                            <tr>
-                                <th>Game Name</th>
-                                <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">Total Reviews <i
-                                        class="fa-solid fa-sort"></i></th>
-                                <th class="sortable" data-sort="positive_rate" style="cursor: pointer;">Positive Rate <i
-                                        class="fa-solid fa-sort"></i></th>
-                                <th class="sortable" data-sort="avg_playtime_hours" style="cursor: pointer;">Avg
-                                    Playtime (hrs) <i class="fa-solid fa-sort"></i></th>
-                                <th class="sortable" data-sort="metacritic_score" style="cursor: pointer;">Metacritic <i
-                                        class="fa-solid fa-sort"></i></th>
-                                <th class="sortable" data-sort="price" style="cursor: pointer;">Price <i
-                                        class="fa-solid fa-sort"></i></th>
-                                <th class="sortable" data-sort="recommendations_total" style="cursor: pointer;">Total
-                                    Recommendations <i class="fa-solid fa-sort"></i></th>
-                            </tr>
-                        </thead>
-                        <tbody id="games-tbody">
-                            <!-- Rows injected via JS -->
-                        </tbody>
-                    </table>
+            </div>
+
+            <div id="tab-revenue" class="tab-content" style="display: none;">
+                <div class="charts-grid">
+                    <div class="chart-container glass-panel span-3">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-sack-dollar"></i> รายได้: แนวเกมที่มีรายได้ประมาณการสูงสุด</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="revenueBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container glass-panel span-3">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-circle-nodes"></i> การค้า: จำนวนรีวิวเทียบราคา (ขนาด = รายได้)
+                            </h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="revenueBubbleChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-technical" class="tab-content" style="display: none;">
+                <div class="charts-grid">
+                    <div class="chart-container glass-panel">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-tags"></i> เทคนิค: สัดส่วนเกมฟรี vs เกมจ่ายเงิน</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="osDonutChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container glass-panel">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-language"></i> การเข้าถึง: จำนวนภาษาเฉลี่ยตามแนวเกม</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="langStackedBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-pipeline" class="tab-content" style="display: none;">
+                <div class="charts-grid">
+                    <div class="chart-container glass-panel span-2">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-microchip"></i> PySpark ETL: สถิติการทำความสะอาดข้อมูล</h2>
+                        </div>
+                        <div class="data-quality-content"
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding: 1rem;">
+                            <div class="dq-section">
+                                <h3 style="color: var(--steam-blue); margin-bottom: 1rem;">ข้อมูลรีวิว (JSON)</h3>
+                                <div class="quality-row"><span>สแกนทั้งหมด</span><strong
+                                        id="dq-reviews-total">--</strong></div>
+                                <div class="quality-row"><span>ทำความสะอาดแล้ว</span><strong class="success-text"
+                                        id="dq-reviews-clean">--</strong></div>
+                                <div class="quality-row"><span>คัดออก (Data Error)</span><strong id="dq-reviews-dropped"
+                                        class="danger-text">--</strong></div>
+                            </div>
+                            <div class="dq-section">
+                                <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">ข้อมูลแอป (CSV)</h3>
+                                <div class="quality-row"><span>สแกนทั้งหมด</span><strong id="dq-apps-total">--</strong>
+                                </div>
+                                <div class="quality-row"><span>ประมวลผลสำเร็จ</span><strong class="success-text"
+                                        id="dq-apps-clean">--</strong></div>
+                                <div class="quality-row"><span>ข้อมูลพร้อมใช้งาน</span><strong
+                                        id="dq-apps-indexed">--</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container glass-panel">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-circle-info"></i> ข้อมูลไปป์ไลน์</h2>
+                        </div>
+                        <div style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.8;">
+                            <p><i class="fa-solid fa-check-circle" style="color:var(--accent-green)"></i>
+                                รองรับการประมวลผลแบบ Batch</p>
+                            <p><i class="fa-solid fa-check-circle" style="color:var(--accent-green)"></i> บังคับใช้
+                                Schema ข้อมูล</p>
+                            <p><i class="fa-solid fa-check-circle" style="color:var(--accent-green)"></i> การบีบอัด
+                                Parquet: SNAPPY</p>
+                            <p><i class="fa-solid fa-check-circle" style="color:var(--accent-green)"></i>
+                                การจัดการลำดับงาน: Apache Airflow</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
