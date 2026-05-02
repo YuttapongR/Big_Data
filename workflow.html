@@ -87,7 +87,7 @@
         C1["clean_data.py"]:::sparkJob
         C2["aggregate_data.py"]:::sparkJob
 
-        R1 -->|"1. Read full reviews"| C1
+        R1 -->|"1. Read 500k rows"| C1
         A1 -->|"2. Read apps data"| C1
 
         C1 -->|"3. Clean reviews"| CP1[("cleaned_reviews.parquet")]:::parquetData
@@ -110,8 +110,6 @@
         API2["GET /api/top-games"]:::apiServer
         API3["GET /api/data-quality"]:::apiServer
         API4["GET /api/pipeline-status"]:::apiServer
-        API5["GET /api/hardcore-games"]:::apiServer
-        API6["GET /api/common-words"]:::apiServer
 
         P1 -.->|"Read Parquet"| API1
         P2 -.->|"Read Parquet"| API2
@@ -129,9 +127,7 @@
             API2 <-->|"Fetch Top Games"| UI1
                 API3 <-->|"Fetch Data Quality"| UI1
                     API4 <-->|"Fetch Status"| UI1
-                        API5 <-->|"Fetch Hardcore Games"| UI1
-                            API6 <-->|"Fetch Keywords"| UI1
-                                end
+                        end
     </div>
 
     <h2>คำอธิบายแต่ละขั้นตอน (Step-by-Step Flow)</h2>

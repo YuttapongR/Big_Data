@@ -366,23 +366,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!data || data.length === 0) return;
 
-        // Transform data for WordCloud2: [['word', count], ...]
+        // Fix blurry canvas issue by setting internal resolution to match container
+        const container = canvas.parentElement;
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+
         const maxCount = Math.max(...data.map(d => d.count));
-        const list = data.map(d => [d.word, Math.max(12, (d.count / maxCount) * 60)]);
+        
+        // Limit to top 80 words for a cleaner look
+        const topWords = data.slice(0, 80);
+        
+        // Scale word size relative to max count, ensuring minimum readable size
+        const list = topWords.map(d => [d.word, Math.max(16, (d.count / maxCount) * (canvas.width > 600 ? 90 : 60))]);
 
         WordCloud(canvas, {
             list: list,
-            gridSize: 8,
+            gridSize: 6,
             weightFactor: 1,
-            fontFamily: 'Outfit, sans-serif',
-            color: function () {
-                const colors = ['#66c0f4', '#4b7399', '#10b981', '#a34bb9', '#f39c12'];
-                return colors[Math.floor(Math.random() * colors.length)];
+            fontFamily: 'Outfit, Inter, sans-serif',
+            fontWeight: '700',
+            color: function (word, weight) {
+                // Color scale based on importance (weight)
+                if (weight > 60) return '#66c0f4'; // Primary Blue
+                if (weight > 45) return '#10b981'; // Accent Green
+                if (weight > 30) return '#8b5cf6'; // Accent Purple
+                if (weight > 20) return '#ec4899'; // Accent Pink
+                return '#94a3b8'; // Muted Text for small words
             },
-            rotateRatio: 0.3,
+            rotateRatio: 0.15, // Keep mostly horizontal for easy reading
             rotationSteps: 2,
             backgroundColor: 'transparent',
-            shuffle: true
+            shape: 'square', // Fits the rectangular container better
+            drawOutOfBound: false,
+            shrinkToFit: true
         });
     }
 
