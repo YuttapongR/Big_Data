@@ -98,36 +98,36 @@
         CP2 -->|"5. Use clean data"| C2
 
         C2 -->|"6. Daily Summary"| P1[("daily_steam_reviews.parquet")]:::parquetData
-        C2 -->|"7. Top Games"| P2[("top_games.parquet")]:::parquetData
-        C2 -->|"8. Hardcore Fans"| P3[("hardcore_games.parquet")]:::parquetData
-        C2 -->|"9. Keywords (NLP)"| P4[("common_words.parquet")]:::parquetData
+        C2 -->|"7. Keywords (NLP)"| P4[("common_words.parquet")]:::parquetData
+        C2 -->|"8. Dashboard Data"| P5[("games_analytics.parquet")]:::parquetData
         C2 -.->|"Global stats"| S1["summary.json"]:::jsonLog
         C2 -.->|"Status update"| PS[".pipeline_status.json"]:::jsonLog
         end
 
         subgraph Backend ["3. FastAPI Backend (main.py)"]
         API1["GET /api/dashboard-data"]:::apiServer
-        API2["GET /api/top-games"]:::apiServer
-        API3["GET /api/data-quality"]:::apiServer
-        API4["GET /api/pipeline-status"]:::apiServer
+        API2["GET /api/games-analytics"]:::apiServer
+        API3["GET /api/common-words"]:::apiServer
+        API4["GET /api/data-quality"]:::apiServer
+        API5["GET /api/pipeline-status"]:::apiServer
 
         P1 -.->|"Read Parquet"| API1
-        P2 -.->|"Read Parquet"| API2
-        P3 -.->|"Read Parquet"| API5
-        P4 -.->|"Read Parquet"| API6
-        DQ -.->|"Read JSON"| API3
-        PS -.->|"Read JSON"| API4
+        P5 -.->|"Read Parquet"| API2
+        P4 -.->|"Read Parquet"| API3
+        DQ -.->|"Read JSON"| API4
+        PS -.->|"Read JSON"| API5
         S1 -.->|"Read JSON"| API1
         end
 
         subgraph Client ["4. Frontend Dashboard"]
         UI1["app.js, index.html, style.css"]:::frontend
 
-        API1 <-->|"Fetch Dashboard Data"| UI1
-            API2 <-->|"Fetch Top Games"| UI1
-                API3 <-->|"Fetch Data Quality"| UI1
-                    API4 <-->|"Fetch Status"| UI1
-                        end
+        API1 <-->|"Fetch Trends & KPIs"| UI1
+            API2 <-->|"Fetch Analytics & Slicers"| UI1
+                API3 <-->|"Fetch Word Cloud"| UI1
+                    API4 <-->|"Fetch Quality Metrics"| UI1
+                        API5 <-->|"Fetch Status"| UI1
+                            end
     </div>
 
     <h2>คำอธิบายแต่ละขั้นตอน (Step-by-Step Flow)</h2>
@@ -153,10 +153,9 @@
             </li>
             <li><strong><code>aggregate_data.py</code></strong>:
                 <ul>
-                    <li>นำไฟล์ที่สะอาดแล้วมา Group By เพื่อคำนวณจำนวนรีวิวเฉลี่ยรายวัน และหาเกมยอดฮิต</li>
-                    <li><strong>Hardcore Fans Analysis</strong>: สรุปข้อมูลเกมยอดฮิตในกลุ่มผู้เล่นที่ใช้งานมากกว่า 100
-                        ชั่วโมง
-                    </li>
+                    <li>นำไฟล์ที่สะอาดแล้วมา Group By เพื่อคำนวณจำนวนรีวิวเฉลี่ยรายวัน และสรุปผลภาพรวม</li>
+                    <li><strong>Games Analytics</strong>: คำนวณรายได้โดยประมาณ, อัตราความชอบ,
+                        และปีที่วางจำหน่ายแยกตามรายเกม</li>
                     <li><strong>NLP Keyword Extraction</strong>: ใช้เทคนิคการแยกคำ (Tokenize) และกรอง Stop Words เพื่อหา
                         "คำยอดฮิต" ในคอมเม้น</li>
                     <li>บันทึกผลลัพธ์ลงเป็นไฟล์ Parquet แยกตามประเภทการวิเคราะห์</li>
@@ -171,13 +170,13 @@
         <h3>3. 🚀 Backend (ตัวกลางส่งข้อมูล)</h3>
         <p>FastAPI ทำหน้าที่เป็นประตูส่งข้อมูลจากไฟล์ Parquet/JSON เข้าสู่หน้าเว็บ:</p>
         <ul>
-            <li><strong><code>/api/dashboard-data</code></strong>: ค้นหาข้อมูลแนวโน้มรายวัน (โดยสามารถรับค่าวันที่
-                Start/End จากหน้าเว็บมากรองข้อมูลด้วย Pandas ได้)</li>
-            <li><strong><code>/api/top-games</code></strong>: ส่งข้อมูลเกมฮิต โดยรับค่าชื่อเกม (Search)
-                จากหน้าเว็บมากรองได้</li>
-            <li><strong><code>/api/hardcore-games</code></strong>: ส่งข้อมูลเกมยอดฮิตในกลุ่มแฟนพันธุ์แท้ (100+ ชม.)</li>
+            <li><strong><code>/api/dashboard-data</code></strong>: ดึงข้อมูลแนวโน้มรายวัน (โดยระบบจะส่งข้อมูล 90
+                วันล่าสุดกลับมาให้อัตโนมัติเพื่อแสดงแนวโน้มกิจกรรม)</li>
+            <li><strong><code>/api/games-analytics</code></strong>: ส่งข้อมูลเกม 5,000 อันดับแรกพร้อมข้อมูลเชิงลึก
+                (ราคา, รายได้, คะแนน) สำหรับวาดกราฟและตาราง</li>
             <li><strong><code>/api/common-words</code></strong>: ส่งข้อมูลคำนิยม (Keywords) ที่ได้จากกระบวนการ NLP</li>
             <li><strong><code>/api/data-quality</code></strong>: ส่งค่า Log คุณภาพข้อมูลให้หน้าเว็บแสดงผล</li>
+            <li><strong><code>/api/pipeline-status</code></strong>: ส่งสถานะการทำงานล่าสุดของ Spark Pipeline</li>
         </ul>
     </div>
 
@@ -185,29 +184,39 @@
         <h3>4. 💻 Frontend (หน้าจอผู้ใช้)</h3>
         <ul>
             <li><strong><code>app.js</code></strong> จะดึงข้อมูล (Fetch) จาก Backend ทั้ง 4 API มารวมกัน</li>
-            <li>หากไม่ได้เลือกวันที่ ระบบจะไม่ส่งวันที่ไปให้ API ทำให้ Backend ส่งข้อมูล 90 วันล่าสุดกลับมาอัตโนมัติ
+            <li><strong>ระบบ Slicers อัตโนมัติ</strong>: Backend จะส่งข้อมูลล่าสุดให้ทันที และใช้ Slicers
+                (แนวเกม/ปี/ราคา) ในการกรองข้อมูลแบบ Real-time บนหน้าเว็บ
             </li>
             <li>นำข้อมูลไปแสดงผลบนกราฟต่างๆ:
                 <ul>
-                    <li><strong>Reviews Trend</strong>: กราฟเส้น (Line Chart)</li>
-                    <li><strong>Top Games</strong>: กราฟแท่งแนวนอน (Horizontal Bar Chart) แยก Positive/Negative</li>
-                    <li><strong>Hardcore Fans</strong>: กราฟแท่งแนวนอนแสดงความนิยมในหมู่ผู้เล่นเกิน 100 ชม.</li>
-                    <li><strong>Trending Keywords</strong>: กราฟแท่งแสดงคำยอดนิยมจากรีวิว</li>
+                    <li><strong>Reviews Trend</strong>: กราฟเส้นแสดงแนวโน้มรีวิวรายวัน</li>
+                    <li><strong>Market Analysis</strong>: กราฟแสดงส่วนแบ่งตลาดแยกตามแนวเกมและราคา</li>
+                    <li><strong>Technical Insights</strong>: กราฟสัดส่วนเกมฟรี vs เกมจ่ายเงิน (แทนที่ OS Support)</li>
+                    <li><strong>Trending Keywords</strong>: กราฟแท่งแสดงคำยอดนิยมจากรีวิว (NLP)</li>
+                    <li><strong>Game Explorer</strong>: ตารางค้นหาข้อมูลเกมที่ละเอียดและแม่นยำ</li>
                 </ul>
             </li>
         </ul>
-    <div class="step-box" style="border-left: 5px solid #27ae60;">
-        <h3>✨ อัปเดตระบบล่าสุด (Latest System Updates)</h3>
-        <p>การปรับปรุงฟีเจอร์และการเพิ่มประสิทธิภาพของระบบที่ดำเนินการล่าสุด:</p>
-        <ul>
-            <li><strong>การจัดการ Layout แบบ Tabbed Navigation:</strong> ปรับโฉมหน้า Dashboard ใหม่โดยแบ่งหมวดหมู่การวิเคราะห์เป็น 5 แท็บหลัก (ตลาดและเทรนด์, คุณภาพและความรู้สึก, รายได้และการค้า, เทคนิค, และไปป์ไลน์) เพื่อความเป็นระเบียบและรองรับหน้าจอขนาดใหญ่ (Full-width Charts)</li>
-            <li><strong>ระบบ Sorting แบบ Interactive ใน Game Explorer:</strong> เพิ่มความสามารถให้ผู้ใช้คลิกที่หัวตาราง (Table Header) เพื่อเรียงลำดับข้อมูลตาม รีวิว, อัตราความชอบ, ราคา หรือ จำนวนคำแนะนำ ได้ทันทีแบบ Real-time</li>
-            <li><strong>Visual Data Indicators:</strong> เพิ่มระบบสีแสดงผลในตาราง (สีเขียว = ดีมาก, สีเหลือง = ปานกลาง, สีแดง = ควรปรับปรุง) ตามอัตรารีวิวเชิงบวก เพื่อการตัดสินใจที่รวดเร็ว (Visual Saliency)</li>
-            <li><strong>การวิเคราะห์ OS Support ขั้นสูง:</strong> พัฒนาโค้ด PySpark ให้ตรวจสอบความต้องการของระบบ (System Requirements) ได้แม่นยำขึ้น เพื่อระบุว่าเกมรองรับ Mac หรือ Linux จริงหรือไม่ ผ่านการทำ Text Parsing ในกระบวนการ ETL</li>
-            <li><strong>Pipeline & Data Quality Tracking:</strong> เพิ่มหน้าจอตรวจสอบคุณภาพข้อมูล (Data Cleaning Metrics) แสดงสถิติการทำความสะอาดข้อมูลดิบ (JSON/CSV) และสถานะการทำงานของระบบประมวลผลข้อมูล</li>
-            <li><strong>UI Localization:</strong> ปรับปรุงส่วนติดต่อผู้ใช้ (UI) ชื่อกราฟ และรายละเอียดข้อมูลทั้งหมดให้เป็นภาษาไทย เพื่อความเข้าใจที่ง่ายขึ้นสำหรับผู้ใช้งาน</li>
-        </ul>
-    </div>
+        <div class="step-box" style="border-left: 5px solid #27ae60;">
+            <h3>✨ อัปเดตระบบล่าสุด (Latest System Updates)</h3>
+            <p>การปรับปรุงฟีเจอร์และการเพิ่มประสิทธิภาพของระบบที่ดำเนินการล่าสุด:</p>
+            <ul>
+                <li><strong>การปรับปรุงประสิทธิภาพ Pipeline (OS Data Removal):</strong> ถอดการวิเคราะห์ OS Support
+                    (Windows/Mac/Linux) ออกเพื่อลดขนาดข้อมูลและเพิ่มความเร็วในการประมวลผล
+                    เนื่องจากข้อมูลต้นทางมีความคลาดเคลื่อนสูง</li>
+                <li><strong>Technical Metric ใหม่ (Free vs Paid):</strong> เปลี่ยนจากการดู OS มาเป็นการวิเคราะห์สัดส่วน
+                    "เกมฟรี vs เกมจ่ายเงิน" ในแท็บเทคนิค เพื่อให้นักพัฒนาเข้าใจโครงสร้างราคาในตลาดได้ชัดเจนยิ่งขึ้น</li>
+                <li><strong>ความแม่นยำของข้อมูลใน Game Explorer:</strong> ปรับปรุงชื่อคอลัมน์เป็น "รีวิวที่วิเคราะห์"
+                    (Dataset) และ "ยอดแนะนำ (Steam)" (Official) พร้อมบังคับประเภทข้อมูลเป็น Integer ใน PySpark
+                    เพื่อให้การเรียงลำดับ (Sorting) ถูกต้องแม่นยำ 100%</li>
+                <li><strong>Consistency Fix (Sorting & UI):</strong> แก้ไข Bug การเรียงลำดับเริ่มต้นให้ตรงกันระหว่าง
+                    Spark Job และไอคอนบนหน้าเว็บ (Default: รีวิวที่วิเคราะห์ DESC)</li>
+                <li><strong>UI Simplification:</strong> ลบตัวกรองวันที่ (Start/End Date)
+                    ออกเพื่อลดความซับซ้อนของส่วนควบคุม และใช้ระบบดึงข้อมูล 90 วันล่าสุดโดยอัตโนมัติแทน</li>
+                <li><strong>Codebase Housekeeping:</strong> ลบสคริปต์ Hotfix และไฟล์ชั่วคราวที่ไม่จำเป็นออก
+                    เพื่อรักษาความสะอาดและความเป็นระเบียบของโครงสร้างโปรเจกต์</li>
+            </ul>
+        </div>
 
 </body>
 

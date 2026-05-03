@@ -3,7 +3,7 @@
     "reviews_processed_limit": 1048148,
     "reviews_cleaned_count": 1048148,
     "reviews_dropped": 0,
-    "apps_total": 239684,
+    "apps_total": 239664,
     "apps_cleaned": 150279,
-    "apps_dropped": 89405
+    "apps_dropped": 89385
 }

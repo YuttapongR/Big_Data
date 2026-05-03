@@ -51,36 +51,58 @@ Pipeline Status (แถบสถานะ)	.pipeline_status.json	สถานะ
 
 
 
+
 เอาข้อมูลจริงในลิงค์นี้
 https://www.kaggle.com/datasets/crainbramp/steam-dataset-2025-multi-modal-gaming-analytics
 ไม่ต้องmockupขึ้นมาตัวอย่างอ่านทีละ500000ก็ได้
 และเพิ่มdashboradให้แสดงข้อมูลที่เยอะกว่านี้และเพิ่มฟีลเตอร์ในหน้าdashborad เช่น เลือกวันที่ เลือกข้อมูลรีวิวเกมที่อยากดูและปรับหน้าdashboradให้ดูสวยงามขึ้นและเปลี่ยนการอ่านไฟล์ด้วย pandas เป็น pysparkและโชว์เออเร่อของข้อมูลนี้และแปลงข้อมูลcsv เป็น parquet
 
 
+
+
 ทำไม pipelineถึงขึ้น Pipeline: Waiting
 และไม่ต้องmockup ข้อมูลขึ้นมาเอาข้อมูลจริงๆที่ใส่ไว้ใน data/raws เลย
+
+
 
 
 รัน airflow เสร็จแล้วแต่ข้อมูลหน้าdashborad ไม่ขึ้น
 
 
+
+
 ในส่วนของ Top Games สามารถทำให้ดูง่ายกว่านี้และตอนทำการคลีนข้อมูลไม่ต้องจำกัดแค่500000 และเพิ่มฟีลเตอร์ในส่วนของ Game Explorer Total Reviews Positive Rate Avg Playtime(hrs) Total Recommendations ให้เรียงจากมากไปน้อยได้ แล้วก็ตรวจสอบความถูกต้องของข้อมูล
+
+
 
 
 เปลี่ยนกราฟ Top Games by Popularity ให้เป็นกราฟแท่งแนวนอน
 เปลี่ยนกราฟ Reviews Trend (90 Days) ให้ดูง่ายขึ้น
 Game Explorer ใช้ฟีลเตอร์ไม่ได้
 
+
+
 สามารถดึงข้อมูลชุดไหนมาแสดงผลได้อีกไหมและเปลี่ยนสีเมนู sort by ให้เข้ากับสีเว็ปและทำให้Top Games by Popularity แยก Positive และ Negative และเรียงลำดับมากไปน้อย
+
+
 
 ในGame Explorer ข้อมูลบางเกมไม่เรียงตามฟีลเตอร์
 
+
+
 สามารถเพิ่มกราฟText Chart มาได้ไหมแบบว่าคำนิยมที่คอมเม้น
+
+
 
 แก้ Trending Keywords in Reviews เป็น word cloud ได้ไหม
 และเปลี่ยน Reviews by Language เป็นอันนี้ที่แสดงinsightมากกว่านี้เช่น คอมเม้น Positive ส่วนใหญ่เป็นคนประเทศอะไร
 
+
+
 ทำให้ Trending Keywords in Reviews มันดูดีกว่านี้ได้ไหม
+
+
+
 
 
 

@@ -27,14 +27,7 @@
 
             <div class="control-group">
                 <h3><i class="fa-solid fa-filter"></i> ตัวกรอง</h3>
-                <div class="filter-item">
-                    <label for="date-start">วันที่เริ่มต้น</label>
-                    <input type="date" id="date-start" class="glass-input">
-                </div>
-                <div class="filter-item">
-                    <label for="date-end">วันที่สิ้นสุด</label>
-                    <input type="date" id="date-end" class="glass-input">
-                </div>
+
                 <div class="filter-item">
                     <label for="game-search">ค้นหาชื่อเกม</label>
                     <input type="text" id="game-search" class="glass-input" placeholder="e.g. Dota 2, Cyberpunk...">
@@ -178,8 +171,8 @@
                             <thead>
                                 <tr>
                                     <th>ชื่อเกม</th>
-                                    <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">รีวิวทั้งหมด
-                                        <i class="fa-solid fa-sort"></i>
+                                    <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">รีวิวที่วิเคราะห์
+                                        <i class="fa-solid fa-sort-down"></i>
                                     </th>
                                     <th class="sortable" data-sort="positive_rate" style="cursor: pointer;">อัตรารีวิว
                                         <i class="fa-solid fa-sort"></i>
@@ -189,7 +182,7 @@
                                     <th class="sortable" data-sort="price" style="cursor: pointer;">ราคา <i
                                             class="fa-solid fa-sort"></i></th>
                                     <th class="sortable" data-sort="recommendations_total" style="cursor: pointer;">
-                                        คำแนะนำ <i class="fa-solid fa-sort-down"></i></th>
+                                        ยอดแนะนำ (Steam) <i class="fa-solid fa-sort"></i></th>
                                 </tr>
                             </thead>
                             <tbody id="games-tbody"></tbody>
@@ -250,7 +243,7 @@
                             <h2><i class="fa-solid fa-tags"></i> เทคนิค: สัดส่วนเกมฟรี vs เกมจ่ายเงิน</h2>
                         </div>
                         <div class="chart-wrapper">
-                            <canvas id="osDonutChart"></canvas>
+                            <canvas id="freePaidDonutChart"></canvas>
                         </div>
                     </div>
 

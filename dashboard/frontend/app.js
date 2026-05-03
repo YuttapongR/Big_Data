@@ -17,8 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastUpdate: document.getElementById('last-update-time'),
         refreshBtn: document.getElementById('refresh-btn'),
         applyFiltersBtn: document.getElementById('apply-filters'),
-        dateStart: document.getElementById('date-start'),
-        dateEnd: document.getElementById('date-end'),
+
         gameSearch: document.getElementById('game-search'),
         slicerGenre: document.getElementById('slicer-genre'),
         slicerYear: document.getElementById('slicer-year'),
@@ -38,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let fullGamesData = [];
     let lastWordData = []; // Store for re-render
     let currentFilteredData = []; // Store for re-render
-    let sortKey = 'recommendations_total';
+    let sortKey = 'total_reviews';
     let sortDir = 'desc';
 
     const chartTheme = {
@@ -59,11 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchAllData() {
         setStatus('loading');
         try {
-            const start = elements.dateStart.value;
-            const end = elements.dateEnd.value;
-
             // Fetch dash (for area chart)
-            const dashRes = await fetch(`${API_BASE}/dashboard-data?start_date=${start}&end_date=${end}`);
+            const dashRes = await fetch(`${API_BASE}/dashboard-data`);
             const dashData = await dashRes.json();
 
             // Fetch games analytics
@@ -140,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try { updateScatter(data); } catch (e) { console.error("Scatter chart error", e); }
         try { updateRevenueBar(data); } catch (e) { console.error("Revenue chart error", e); }
         try { updateBubble(data); } catch (e) { console.error("Bubble chart error", e); }
-        try { updateOsDonut(data); } catch (e) { console.error("OS chart error", e); }
+        try { updateFreePaidDonut(data); } catch (e) { console.error("Free/Paid chart error", e); }
         try { updateLangStacked(data); } catch (e) { console.error("Lang chart error", e); }
 
         // Sort data before table update
@@ -368,9 +364,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function updateOsDonut(data) {
-        destroyChart('osDonutChart');
-        const ctx = document.getElementById('osDonutChart').getContext('2d');
+    function updateFreePaidDonut(data) {
+        destroyChart('freePaidDonutChart');
+        const canvas = document.getElementById('freePaidDonutChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
         let free = 0, paid = 0;
         data.forEach(d => {
             if (Number(d.price) === 0 || d.is_free) {
@@ -380,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        charts['osDonutChart'] = new Chart(ctx, {
+        charts['freePaidDonutChart'] = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['เกมฟรี', 'เกมจ่ายเงิน'],

@@ -21,27 +21,20 @@ app.add_middleware(
 
 # Paths
 DATA_PATH = os.environ.get("DATA_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/daily_steam_reviews.parquet"))
-TOP_GAMES_PATH = os.environ.get("TOP_GAMES_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/top_games.parquet"))
 PIPELINE_STATUS_PATH = os.environ.get("PIPELINE_STATUS_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/.pipeline_status.json"))
 SUMMARY_PATH = os.path.join(os.path.dirname(DATA_PATH), "summary.json")
 DATA_QUALITY_PATH = os.path.join(os.path.dirname(DATA_PATH), "data_quality_log.json")
-HARDCORE_GAMES_PATH = os.environ.get("HARDCORE_GAMES_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/hardcore_games.parquet"))
 COMMON_WORDS_PATH = os.environ.get("COMMON_WORDS_PATH", os.path.join(os.path.dirname(__file__), "../../data/processed/common_words.parquet"))
 
 # Resolve paths
 DATA_PATH = os.path.abspath(DATA_PATH)
-TOP_GAMES_PATH = os.path.abspath(TOP_GAMES_PATH)
 PIPELINE_STATUS_PATH = os.path.abspath(PIPELINE_STATUS_PATH)
 SUMMARY_PATH = os.path.abspath(SUMMARY_PATH)
 DATA_QUALITY_PATH = os.path.abspath(DATA_QUALITY_PATH)
-HARDCORE_GAMES_PATH = os.path.abspath(HARDCORE_GAMES_PATH)
 COMMON_WORDS_PATH = os.path.abspath(COMMON_WORDS_PATH)
 
 @app.get("/api/dashboard-data")
-async def get_dashboard_data(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None
-):
+async def get_dashboard_data():
     """ดึงข้อมูล Daily Reviews แบบมี Filter วันที่"""
     if os.path.exists(DATA_PATH):
         try:
@@ -51,15 +44,8 @@ async def get_dashboard_data(
                 # Ensure it's string for filtering
                 df['review_date'] = df['review_date'].astype(str)
                 
-            # Filter by date if provided
-            if start_date:
-                df = df[df['review_date'] >= start_date]
-            if end_date:
-                df = df[df['review_date'] <= end_date]
-                
-            # If no filters, return last 90 days to show more data
-            if not start_date and not end_date:
-                df = df.sort_values('review_date').tail(90)
+            # Always return last 90 days of trends by default
+            df = df.sort_values('review_date').tail(90)
                 
             df = df.fillna(0)
             records = df.to_dict(orient="records")
@@ -77,40 +63,6 @@ async def get_dashboard_data(
 
     # Return empty data if no real data found
     return {"data": [], "is_mock": False, "count": 0, "summary": None}
-
-@app.get("/api/top-games")
-async def get_top_games(search: Optional[str] = None, limit: int = Query(50, le=100)):
-    """ดึงข้อมูล Top Games และกรองด้วยการค้นหาชื่อ"""
-    if os.path.exists(TOP_GAMES_PATH):
-        try:
-            df = pd.read_parquet(TOP_GAMES_PATH)
-            
-            if search:
-                df = df[df['name'].str.contains(search, case=False, na=False)]
-                
-            sort_col = 'recommendations_total' if 'recommendations_total' in df.columns else 'total_reviews'
-            df = df.sort_values(sort_col, ascending=False).head(limit)
-            df = df.fillna(0)
-            records = df.to_dict(orient="records")
-            return {"data": records, "is_mock": False, "count": len(records)}
-        except Exception as e:
-            print(f"Error reading top games parquet: {e}")
-
-    return {"data": [], "is_mock": False, "count": 0}
-
-@app.get("/api/hardcore-games")
-async def get_hardcore_games():
-    """ดึงข้อมูลเกมยอดฮิตในหมู่แฟนพันธุ์แท้ (100+ ชั่วโมง)"""
-    if os.path.exists(HARDCORE_GAMES_PATH):
-        try:
-            df = pd.read_parquet(HARDCORE_GAMES_PATH)
-            df = df.fillna(0)
-            records = df.to_dict(orient="records")
-            return {"data": records, "is_mock": False}
-        except Exception as e:
-            print(f"Error reading hardcore games parquet: {e}")
-
-    return {"data": [], "is_mock": False}
 
 @app.get("/api/common-words")
 async def get_common_words():

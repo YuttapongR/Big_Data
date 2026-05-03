@@ -115,14 +115,18 @@ def clean_steam_data():
 
         # 4. ลบ duplicate
         apps_df = apps_df.dropDuplicates(["appid"])
+
+        # 5. แปลงประเภทข้อมูลให้ถูกต้อง
+        from pyspark.sql.types import IntegerType
+        apps_df = apps_df.withColumn("recommendations_total", col("recommendations_total").cast(IntegerType()))
+        apps_df = apps_df.fillna({"recommendations_total": 0})
         
         # เลือกคอลัมน์ที่จำเป็น
         apps_df = apps_df.select(
             "appid", "name", "type", "is_free", "release_date",
             "metacritic_score", "recommendations_total",
             "mat_final_price", "mat_currency",
-            "supported_languages", "mat_supports_windows", 
-            "mat_supports_mac", "mat_supports_linux", "mat_achievement_count"
+            "supported_languages", "mat_achievement_count"
         )
 
         cleaned_apps_count = apps_df.count()
