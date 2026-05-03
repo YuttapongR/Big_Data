@@ -65,8 +65,7 @@
 
 <body>
     <h1>Steam Big Data Architecture & Workflow</h1>
-    <p>ไดอะแกรมด้านล่างนี้แสดงขั้นตอนการทำงานของระบบทั้งหมดตั้งแต่ไฟล์ข้อมูลดิบ (Raw Data) ไปจนถึงการแสดงผลบนหน้าจอ
-        Dashboard ครับ</p>
+    <p>ไดอะแกรมด้านล่างนี้แสดงขั้นตอนการทำงานของระบบทั้งหมดตั้งแต่ไฟล์ข้อมูลดิบ (Raw Data) ไปจนถึงการแสดงผลบนหน้าจอ Dashboard ครับ</p>
 
     <!-- กล่องแสดงผล Mermaid Diagram -->
     <div class="mermaid">
@@ -123,44 +122,38 @@
         UI1["app.js, index.html, style.css"]:::frontend
 
         API1 <-->|"Fetch Trends & KPIs"| UI1
-            API2 <-->|"Fetch Analytics & Slicers"| UI1
-                API3 <-->|"Fetch Word Cloud"| UI1
-                    API4 <-->|"Fetch Quality Metrics"| UI1
-                        API5 <-->|"Fetch Status"| UI1
-                            end
+        API2 <-->|"Fetch Analytics & Slicers"| UI1
+        API3 <-->|"Fetch Word Cloud"| UI1
+        API4 <-->|"Fetch Quality Metrics"| UI1
+        API5 <-->|"Fetch Status"| UI1
+        end
     </div>
 
     <h2>คำอธิบายแต่ละขั้นตอน (Step-by-Step Flow)</h2>
 
     <div class="step-box">
         <h3>1. 📁 Data Source (ข้อมูลต้นทาง)</h3>
-        <p>ผู้ใช้นำไฟล์ <code>reviews.csv</code> และ <code>applications.csv</code> จาก Kaggle ไปวางในโฟลเดอร์
-            <code>data/raw/</code>
-        </p>
+        <p>ผู้ใช้นำไฟล์ <code>reviews.csv</code> และ <code>applications.csv</code> ไปวางในโฟลเดอร์ <code>data/raw/</code></p>
     </div>
 
     <div class="step-box">
         <h3>2. ⚙️ Data Pipeline (การทำความสะอาดและสรุปผลด้วย PySpark)</h3>
-        <p>Airflow จะสั่งรันสคริปต์ PySpark ตามลำดับดังนี้:</p>
+        <p>Airflow หรือการรันด้วยมือจะสั่งรันสคริปต์ PySpark ตามลำดับดังนี้:</p>
+        <p><em>*หมายเหตุ: สคริปต์รองรับสถาปัตยกรรม <strong>Relative Paths</strong> ทำให้รันได้ทั้งบน Local (Windows) และ Docker โดยไม่ต้องแก้โค้ด</em></p>
         <ol>
             <li><strong><code>clean_data.py</code></strong>:
                 <ul>
-                    <li>อ่าน <code>reviews.csv</code> (จำกัด 500,000 แถวแรก) และทิ้งแถวที่โครงสร้างพัง (DROPMALFORMED)
-                    </li>
-                    <li>สร้างไฟล์สรุปการทำความสะอาด <code>data_quality_log.json</code> ไว้ดูว่าข้อมูลเสียไปกี่แถว</li>
-                    <li>บันทึกไฟล์ที่สะอาดแล้วเป็น Parquet (อ่านไว ใช้พื้นที่น้อย)</li>
+                    <li>อ่าน <code>reviews.csv</code> (จำกัด 500,000 แถวแรก) และทิ้งแถวที่พัง (DROPMALFORMED)</li>
+                    <li>สร้างไฟล์สรุปการทำความสะอาด <code>data_quality_log.json</code> เพื่อตรวจสอบคุณภาพข้อมูล</li>
+                    <li>บันทึกไฟล์ที่สะอาดแล้วเป็น Parquet ไว้ใน <code>data/processed/</code></li>
                 </ul>
             </li>
             <li><strong><code>aggregate_data.py</code></strong>:
                 <ul>
-                    <li>นำไฟล์ที่สะอาดแล้วมา Group By เพื่อคำนวณจำนวนรีวิวเฉลี่ยรายวัน และสรุปผลภาพรวม</li>
-                    <li><strong>Games Analytics</strong>: คำนวณรายได้โดยประมาณ, อัตราความชอบ,
-                        และปีที่วางจำหน่ายแยกตามรายเกม</li>
-                    <li><strong>NLP Keyword Extraction</strong>: ใช้เทคนิคการแยกคำ (Tokenize) และกรอง Stop Words เพื่อหา
-                        "คำยอดฮิต" ในคอมเม้น</li>
-                    <li>บันทึกผลลัพธ์ลงเป็นไฟล์ Parquet แยกตามประเภทการวิเคราะห์</li>
-                    <li>สร้างไฟล์ <code>summary.json</code> และ <code>.pipeline_status.json</code> บอกว่ารันเสร็จสมบูรณ์
-                    </li>
+                    <li>นำไฟล์ที่สะอาดแล้วมาคำนวณสถิติรายวัน และสรุปผลภาพรวม</li>
+                    <li><strong>Games Analytics</strong>: คำนวณรายได้โดยประมาณ, อัตราความชอบ, จำนวนภาษา และปีที่วางจำหน่าย (จำกัด 5,000 อันดับแรกเพื่อประสิทธิภาพ)</li>
+                    <li><strong>NLP Keyword Extraction</strong>: กรอง Stop Words เพื่อหาคำยอดนิยมจากรีวิว</li>
+                    <li>บันทึกผลลัพธ์เป็นไฟล์ Parquet สำหรับ API Backend</li>
                 </ul>
             </li>
         </ol>
@@ -168,14 +161,12 @@
 
     <div class="step-box">
         <h3>3. 🚀 Backend (ตัวกลางส่งข้อมูล)</h3>
-        <p>FastAPI ทำหน้าที่เป็นประตูส่งข้อมูลจากไฟล์ Parquet/JSON เข้าสู่หน้าเว็บ:</p>
+        <p>FastAPI ทำหน้าที่อ่านไฟล์ Parquet จากโฟลเดอร์ <code>data/processed/</code> และส่งข้อมูลผ่าน API:</p>
         <ul>
-            <li><strong><code>/api/dashboard-data</code></strong>: ดึงข้อมูลแนวโน้มรายวัน (โดยระบบจะส่งข้อมูล 90
-                วันล่าสุดกลับมาให้อัตโนมัติเพื่อแสดงแนวโน้มกิจกรรม)</li>
-            <li><strong><code>/api/games-analytics</code></strong>: ส่งข้อมูลเกม 5,000 อันดับแรกพร้อมข้อมูลเชิงลึก
-                (ราคา, รายได้, คะแนน) สำหรับวาดกราฟและตาราง</li>
-            <li><strong><code>/api/common-words</code></strong>: ส่งข้อมูลคำนิยม (Keywords) ที่ได้จากกระบวนการ NLP</li>
-            <li><strong><code>/api/data-quality</code></strong>: ส่งค่า Log คุณภาพข้อมูลให้หน้าเว็บแสดงผล</li>
+            <li><strong><code>/api/dashboard-data</code></strong>: ดึงข้อมูลสรุปรายวันและ KPI หลัก</li>
+            <li><strong><code>/api/games-analytics</code></strong>: ส่งข้อมูลเกมพร้อมฟิลด์ที่ผ่านการคำนวณ (ราคา, รายได้, คะแนน, ปี)</li>
+            <li><strong><code>/api/common-words</code></strong>: ส่งข้อมูลคำนิยมสำหรับ Word Cloud</li>
+            <li><strong><code>/api/data-quality</code></strong>: ส่งสถิติการทำความสะอาดข้อมูล (Cleaned vs Dropped)</li>
             <li><strong><code>/api/pipeline-status</code></strong>: ส่งสถานะการทำงานล่าสุดของ Spark Pipeline</li>
         </ul>
     </div>
@@ -183,41 +174,28 @@
     <div class="step-box">
         <h3>4. 💻 Frontend (หน้าจอผู้ใช้)</h3>
         <ul>
-            <li><strong><code>app.js</code></strong> จะดึงข้อมูล (Fetch) จาก Backend ทั้ง 4 API มารวมกัน</li>
-            <li><strong>ระบบ Slicers อัตโนมัติ</strong>: Backend จะส่งข้อมูลล่าสุดให้ทันที และใช้ Slicers
-                (แนวเกม/ปี/ราคา) ในการกรองข้อมูลแบบ Real-time บนหน้าเว็บ
-            </li>
+            <li><strong>Consolidated UI</strong>: ยุบรวมข้อมูลเชิงพาณิชย์และแนวโน้มเข้าด้วยกันเพื่อให้อ่านง่ายในหน้าเดียว</li>
             <li>นำข้อมูลไปแสดงผลบนกราฟต่างๆ:
                 <ul>
-                    <li><strong>Reviews Trend</strong>: กราฟเส้นแสดงแนวโน้มรีวิวรายวัน</li>
-                    <li><strong>Market Analysis</strong>: กราฟแสดงส่วนแบ่งตลาดแยกตามแนวเกมและราคา</li>
-                    <li><strong>Technical Insights</strong>: กราฟสัดส่วนเกมฟรี vs เกมจ่ายเงิน (แทนที่ OS Support)</li>
-                    <li><strong>Trending Keywords</strong>: กราฟแท่งแสดงคำยอดนิยมจากรีวิว (NLP)</li>
-                    <li><strong>Game Explorer</strong>: ตารางค้นหาข้อมูลเกมที่ละเอียดและแม่นยำ</li>
+                    <li><strong>Release Trend</strong>: กราฟเส้นแสดง "จำนวนเกมที่วางจำหน่ายจริง" ตามช่วงเวลา</li>
+                    <li><strong>Market Analysis</strong>: กราฟแท่งแสดงส่วนแบ่งตลาดแยกตามแนวเกม</li>
+                    <li><strong>Commercial Insights</strong>: กราฟสัดส่วนเกมฟรี vs เกมจ่ายเงิน (ย้ายจากแท็บเทคนิคมาไว้หน้าแรก)</li>
+                    <li><strong>Price vs Score</strong>: กราฟจุด (Scatter) วิเคราะห์ความคุ้มค่าของราคาต่อคะแนนรีวิว</li>
+                    <li><strong>Game Explorer</strong>: ตารางสำรวจข้อมูลเกมแบบ Interactive</li>
                 </ul>
             </li>
         </ul>
         <div class="step-box" style="border-left: 5px solid #27ae60;">
             <h3>✨ อัปเดตระบบล่าสุด (Latest System Updates)</h3>
-            <p>การปรับปรุงฟีเจอร์และการเพิ่มประสิทธิภาพของระบบที่ดำเนินการล่าสุด:</p>
             <ul>
-                <li><strong>การปรับปรุงประสิทธิภาพ Pipeline (OS Data Removal):</strong> ถอดการวิเคราะห์ OS Support
-                    (Windows/Mac/Linux) ออกเพื่อลดขนาดข้อมูลและเพิ่มความเร็วในการประมวลผล
-                    เนื่องจากข้อมูลต้นทางมีความคลาดเคลื่อนสูง</li>
-                <li><strong>Technical Metric ใหม่ (Free vs Paid):</strong> เปลี่ยนจากการดู OS มาเป็นการวิเคราะห์สัดส่วน
-                    "เกมฟรี vs เกมจ่ายเงิน" ในแท็บเทคนิค เพื่อให้นักพัฒนาเข้าใจโครงสร้างราคาในตลาดได้ชัดเจนยิ่งขึ้น</li>
-                <li><strong>ความแม่นยำของข้อมูลใน Game Explorer:</strong> ปรับปรุงชื่อคอลัมน์เป็น "รีวิวที่วิเคราะห์"
-                    (Dataset) และ "ยอดแนะนำ (Steam)" (Official) พร้อมบังคับประเภทข้อมูลเป็น Integer ใน PySpark
-                    เพื่อให้การเรียงลำดับ (Sorting) ถูกต้องแม่นยำ 100%</li>
-                <li><strong>Consistency Fix (Sorting & UI):</strong> แก้ไข Bug การเรียงลำดับเริ่มต้นให้ตรงกันระหว่าง
-                    Spark Job และไอคอนบนหน้าเว็บ (Default: รีวิวที่วิเคราะห์ DESC)</li>
-                <li><strong>UI Simplification:</strong> ลบตัวกรองวันที่ (Start/End Date)
-                    ออกเพื่อลดความซับซ้อนของส่วนควบคุม และใช้ระบบดึงข้อมูล 90 วันล่าสุดโดยอัตโนมัติแทน</li>
-                <li><strong>Codebase Housekeeping:</strong> ลบสคริปต์ Hotfix และไฟล์ชั่วคราวที่ไม่จำเป็นออก
-                    เพื่อรักษาความสะอาดและความเป็นระเบียบของโครงสร้างโปรเจกต์</li>
+                <li><strong>Hybrid Architecture Support:</strong> ปรับปรุงระบบจัดการพาธให้เป็นแบบ Relative ทำให้รัน Pipeline ได้ทั้งบน Local (venv) และ Docker/Airflow โดยไม่ต้องสลับโค้ดไปมา</li>
+                <li><strong>UI Consolidation & Expansion:</strong> ลบแท็บ "ข้อมูลทางเทคนิค" และย้ายกราฟ "สัดส่วนเกมฟรี/จ่ายเงิน" มาไว้ที่หน้าแรก (Market & Trend) พร้อมขยายขนาดกล่องให้ใหญ่ขึ้น</li>
+                <li><strong>Release Trend Correction:</strong> แก้ไขตรรกะกราฟแนวโน้มให้แสดง "จำนวนเกมที่วางจำหน่ายตามช่วงเวลา" จริงๆ (อ้างอิงจาก Release Year)</li>
+                <li><strong>Performance Optimization:</strong> คงลิมิตการส่งข้อมูลเกมไว้ที่ 5,000 อันดับสูงสุด เพื่อความลื่นไหลของหน้า Dashboard</li>
+                <li><strong>System Cleanup:</strong> ลบไฟล์ Parquet ที่ล้าสมัยและโค้ดที่ไม่ได้ใช้งาน (Dead Code) ออกจากโปรเจกต์</li>
             </ul>
         </div>
-
+    </div>
 </body>
 
 </html>
