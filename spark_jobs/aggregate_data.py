@@ -19,8 +19,10 @@ def aggregate_steam_data():
         
     spark.sparkContext.setLogLevel("WARN")
 
-    # กำหนด Path สำหรับโหลดและบันทึกข้อมูล
-    processed_dir = "/opt/airflow/data/processed"
+    # ปรับพาธให้เป็น relative เพื่อให้ใช้งานได้ทั้งบน Local และ Docker
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    raw_dir = os.path.join(base_dir, "data", "raw")
+    processed_dir = os.path.join(base_dir, "data", "processed")
     cleaned_reviews_path = os.path.join(processed_dir, "cleaned_reviews.parquet")
     cleaned_apps_path = os.path.join(processed_dir, "cleaned_apps.parquet")
     daily_data_path = os.path.join(processed_dir, "daily_steam_reviews.parquet")
@@ -133,7 +135,8 @@ def aggregate_steam_data():
         print("⏳ Aggregating games analytics for dashboard...")
         # ดึงหมวดหมู่เกม (Genres) มาเชื่อมโยงกับ AppID
         try:
-            raw_dir = "/opt/airflow/data/raw"
+            # ใช้พาธที่ตั้งไว้ตอนต้น
+            # raw_dir และ processed_dir ถูกตั้งไว้ในระดับ function scope แล้ว
             app_genres_df = spark.read.csv(os.path.join(raw_dir, "application_genres.csv"), header=True, inferSchema=True)
             genres_name_df = spark.read.csv(os.path.join(raw_dir, "genres.csv"), header=True, inferSchema=True)
             first_genre_df = app_genres_df.join(genres_name_df, app_genres_df.genre_id == genres_name_df.id, "inner") \
@@ -159,8 +162,26 @@ def aggregate_steam_data():
         )
         
         analytics_df = analytics_apps.join(app_reviews_agg, "appid", "inner")
+
+        # ===== วิเคราะห์การรองรับจอย (Controller Support) =====
+        try:
+            app_categories_df = spark.read.csv(os.path.join(raw_dir, "application_categories.csv"), header=True, inferSchema=True)
+            # 75 = Full controller support, 307 = Partial Controller Support
+            controller_df = app_categories_df.filter(col("category_id").isin(75, 307)) \
+                .withColumn("support_type", 
+                    when(col("category_id") == 75, "Full")
+                    .otherwise("Partial")
+                ) \
+                .groupBy("appid") \
+                .agg(first("support_type").alias("controller_support"))
+            
+            analytics_df = analytics_df.join(controller_df, "appid", "left")
+            analytics_df = analytics_df.withColumn("controller_support", coalesce(col("controller_support"), lit("None")))
+        except Exception as e:
+            print(f"Warning: Could not process controller support: {e}")
+            analytics_df = analytics_df.withColumn("controller_support", lit("None"))
         
-        from pyspark.sql.functions import year, coalesce, size, lit
+        from pyspark.sql.functions import year, coalesce, size, lit, when
         
         # คำนวณ Metrics เชิงธุรกิจ: ปีที่ออกขาย, อัตราความชอบ, รายได้โดยประมาณ, และจำนวนภาษา
         analytics_df = analytics_df.withColumn("release_year", year("release_date"))

@@ -127,8 +127,6 @@
                 <button class="tab-btn" data-tab="tab-revenue"
                     style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">รายได้
                     และการค้า</button>
-                <button class="tab-btn" data-tab="tab-technical"
-                    style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">ข้อมูลทางเทคนิค</button>
                 <button class="tab-btn" data-tab="tab-pipeline"
                     style="background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 1rem; border-bottom: 2px solid transparent; transition: all 0.3s ease;">ไปป์ไลน์
                     (Pipeline)</button>
@@ -154,6 +152,15 @@
                             <canvas id="releaseAreaChart"></canvas>
                         </div>
                     </div>
+
+                    <div class="chart-container glass-panel span-3">
+                        <div class="chart-header">
+                            <h2><i class="fa-solid fa-tags"></i> เทคนิค: สัดส่วนเกมฟรี vs เกมจ่ายเงิน</h2>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="freePaidDonutChart"></canvas>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Game Explorer (Only in Market & Trend) -->
@@ -171,7 +178,8 @@
                             <thead>
                                 <tr>
                                     <th>ชื่อเกม</th>
-                                    <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">รีวิวที่วิเคราะห์
+                                    <th class="sortable" data-sort="total_reviews" style="cursor: pointer;">
+                                        รีวิวที่วิเคราะห์
                                         <i class="fa-solid fa-sort-down"></i>
                                     </th>
                                     <th class="sortable" data-sort="positive_rate" style="cursor: pointer;">อัตรารีวิว
@@ -236,27 +244,6 @@
                 </div>
             </div>
 
-            <div id="tab-technical" class="tab-content" style="display: none;">
-                <div class="charts-grid">
-                    <div class="chart-container glass-panel">
-                        <div class="chart-header">
-                            <h2><i class="fa-solid fa-tags"></i> เทคนิค: สัดส่วนเกมฟรี vs เกมจ่ายเงิน</h2>
-                        </div>
-                        <div class="chart-wrapper">
-                            <canvas id="freePaidDonutChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="chart-container glass-panel">
-                        <div class="chart-header">
-                            <h2><i class="fa-solid fa-language"></i> การเข้าถึง: จำนวนภาษาเฉลี่ยตามแนวเกม</h2>
-                        </div>
-                        <div class="chart-wrapper">
-                            <canvas id="langStackedBarChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div id="tab-pipeline" class="tab-content" style="display: none;">
                 <div class="charts-grid">

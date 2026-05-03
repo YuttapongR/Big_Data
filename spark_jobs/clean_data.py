@@ -14,8 +14,10 @@ def clean_steam_data():
         
     spark.sparkContext.setLogLevel("WARN")
 
-    raw_dir = "/opt/airflow/data/raw"
-    processed_dir = "/opt/airflow/data/processed"
+    # ปรับพาธให้เป็น relative เพื่อให้ใช้งานได้ทั้งบน Local และ Docker
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    raw_dir = os.path.join(base_dir, "data", "raw")
+    processed_dir = os.path.join(base_dir, "data", "processed")
     os.makedirs(processed_dir, exist_ok=True)
 
     # ========== Clean Reviews ==========
@@ -27,11 +29,11 @@ def clean_steam_data():
     # Read CSV with PySpark
     try:
         reviews_df = spark.read.csv(
-            reviews_path,
-            header=True,
-            inferSchema=True,
-            mode="DROPMALFORMED", # Drop rows with parsing errors
-            multiLine=True, # For review text with newlines
+            reviews_path, 
+            header=True, # บรรทัดแรกของไฟล์คือชื่อคอลัมน์ ไม่ใช่ข้อมูล
+            inferSchema=True, # สั่งให้ Spark เดาประเภทข้อมูล ให้โดยอัตโนมัติ (เช่น คอลัมน์ไหนเป็นตัวเลข คอลัมน์ไหนเป็นข้อความ หรือค่าความจริง)
+            mode="DROPMALFORMED", # เป็นโหมดจัดการข้อมูลที่ผิดพลาด (Parsing errors) โดยถ้าเจอแถวไหนที่ รูปแบบเสียหรืออ่านไม่ได้
+            multiLine=True, #   เพราะข้อความรีวิวเกมมักจะมีการขึ้นบรรทัดใหม่ (Newline) ภายในข้อความเดียว
             escape='"'
         )
         
@@ -137,13 +139,13 @@ def clean_steam_data():
         
         # Save error summary
         error_log = {
-            "reviews_total_scanned": original_count,
-            "reviews_processed_limit": original_count,
-            "reviews_cleaned_count": cleaned_count,
-            "reviews_dropped": original_count - cleaned_count,
-            "apps_total": original_apps_count,
-            "apps_cleaned": cleaned_apps_count,
-            "apps_dropped": original_apps_count - cleaned_apps_count
+            "reviews_total_scanned": original_count, #เก็บจำนวนReview ที่ระบบอ่านเข้ามา
+            "reviews_processed_limit": original_count, # จำนวน Review ที่ถูกส่งเข้าสู่กระบวนการประมวลผล
+            "reviews_cleaned_count": cleaned_count, #เก็บจำนวน Review ที่ ผ่านการทำความสะอาด และตรวจสอบเงื่อนไขต่างๆ แล้ว
+            "reviews_dropped": original_count - cleaned_count, #คำนวณจำนวน Review ที่ ถูกคัดออก โดยเอาจำนวนทั้งหมดตั้ง ลบด้วยจำนวนที่ผ่านการทำความสะอาด
+            "apps_total": original_apps_count, # เก็บจำนวนข้อมูล Application (หรือรายชื่อเกม) ทั้งหมดที่มีตอนเริ่มต้น
+            "apps_cleaned": cleaned_apps_count, # เก็บจำนวนข้อมูล Application ที่เหลืออยู่หลังจากลบข้อมูลซ้ำ หรือลบข้อมูลที่ไม่สมบูรณ์ออกแล้ว
+            "apps_dropped": original_apps_count - cleaned_apps_count # คำนวณจำนวน Application ที่ ถูกคัดออก จากระบบ
         }
         
         with open(os.path.join(processed_dir, "data_quality_log.json"), "w") as f:

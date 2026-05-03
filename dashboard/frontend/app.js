@@ -29,8 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dqAppsTotal: document.getElementById('dq-apps-total'),
         dqAppsClean: document.getElementById('dq-apps-clean'),
         dqAppsIndexed: document.getElementById('dq-apps-indexed'),
-        tableSortSelect: document.getElementById('table-sort-select'),
-        tableSortDir: document.getElementById('table-sort-dir')
     };
 
     let charts = {};
@@ -80,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) { console.error("Word data fail", e); }
 
             updateKPIs(dashData);
-            updateAreaChart(dashData.data);
 
             applyClientSideFiltersAndRender();
 
@@ -137,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try { updateRevenueBar(data); } catch (e) { console.error("Revenue chart error", e); }
         try { updateBubble(data); } catch (e) { console.error("Bubble chart error", e); }
         try { updateFreePaidDonut(data); } catch (e) { console.error("Free/Paid chart error", e); }
-        try { updateLangStacked(data); } catch (e) { console.error("Lang chart error", e); }
+        try { updateReleaseTrend(data); } catch (e) { console.error("Release trend error", e); }
 
         // Sort data before table update
         const sorted = [...data].sort((a, b) => {
@@ -153,26 +150,65 @@ document.addEventListener('DOMContentLoaded', () => {
         if (charts[id]) { charts[id].destroy(); }
     }
 
-    function updateAreaChart(data) {
+    function updateReleaseTrend(data) {
         destroyChart('releaseAreaChart');
-        const ctx = document.getElementById('releaseAreaChart').getContext('2d');
-        const labels = data.map(d => d.review_date);
+        const canvas = document.getElementById('releaseAreaChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const year = elements.slicerYear.value;
+        const trendData = {};
+
+        if (year === 'All') {
+            // Group by Year
+            data.forEach(d => {
+                const y = d.release_year;
+                if (y && y > 1990) trendData[y] = (trendData[y] || 0) + 1;
+            });
+        } else {
+            // Group by Month (if available) or just show this year
+            // Since we might not have release month easily available in the current agg, 
+            // we'll at least show the count for that year across genres or just a single point.
+            // Let's assume we want to see years trend even when filtered, but highlight the selected.
+            // Better: If year is selected, show trend of reviews for games in that year? 
+            // No, the title says "released over time". 
+            // Let's just show years for now but filter the count.
+            data.forEach(d => {
+                const y = d.release_year;
+                if (y) trendData[y] = (trendData[y] || 0) + 1;
+            });
+        }
+
+        const sortedLabels = Object.keys(trendData).sort();
+        const counts = sortedLabels.map(l => trendData[l]);
 
         charts['releaseAreaChart'] = new Chart(ctx, {
             type: 'line',
             data: {
-                labels,
+                labels: sortedLabels,
                 datasets: [{
-                    label: 'จำนวนรีวิว (ตัวแทนกิจกรรม)',
-                    data: data.map(d => d.total_reviews),
-                    borderColor: chartTheme.colors[0],
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                    fill: true, tension: 0.4
+                    label: 'จำนวนเกมที่วางจำหน่าย',
+                    data: counts,
+                    borderColor: chartTheme.colors[2],
+                    backgroundColor: chartTheme.colors[2] + '33',
+                    fill: true,
+                    tension: 0.3
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: { x: { grid: { color: chartTheme.gridColor } }, y: { grid: { color: chartTheme.gridColor } } }
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'ปีที่วางจำหน่าย' },
+                        grid: { color: chartTheme.gridColor }
+                    },
+                    y: {
+                        title: { display: true, text: 'จำนวนเกม' },
+                        beginAtZero: true,
+                        grid: { color: chartTheme.gridColor }
+                    }
+                }
             }
         });
     }
@@ -392,33 +428,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function updateLangStacked(data) {
-        destroyChart('langStackedBarChart');
-        const ctx = document.getElementById('langStackedBarChart').getContext('2d');
-
-        const langByGenre = {};
-        data.forEach(d => {
-            if (!d.genre) return;
-            if (!langByGenre[d.genre]) langByGenre[d.genre] = [];
-            langByGenre[d.genre].push(d.language_count || 1);
-        });
-
-        const genres = Object.keys(langByGenre).slice(0, 10);
-        const avgLangs = genres.map(g => langByGenre[g].reduce((a, b) => a + b, 0) / langByGenre[g].length);
-
-        charts['langStackedBarChart'] = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: genres,
-                datasets: [{
-                    label: 'จำนวนภาษาเฉลี่ยที่รองรับ',
-                    data: avgLangs,
-                    backgroundColor: chartTheme.colors[2]
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { color: chartTheme.gridColor } }, y: { grid: { color: chartTheme.gridColor } } } }
-        });
-    }
 
     function updateWordCloud(data) {
         const canvas = document.getElementById('wordCloudCanvas');
