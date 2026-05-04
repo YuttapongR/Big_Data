@@ -304,27 +304,79 @@ document.addEventListener('DOMContentLoaded', () => {
         destroyChart('priceScoreScatterChart');
         const ctx = document.getElementById('priceScoreScatterChart').getContext('2d');
 
-        const scatterData = data.map(d => ({ x: d.price, y: d.positive_rate, name: d.name }));
+        // จัดกลุ่มเกมตามช่วงราคา แล้วหาค่าเฉลี่ยรีวิวเชิงบวก
+        const ranges = [
+            { label: 'ฟรี', min: 0, max: 0 },
+            { label: '$1-$5', min: 0.01, max: 5 },
+            { label: '$6-$10', min: 5.01, max: 10 },
+            { label: '$11-$20', min: 10.01, max: 20 },
+            { label: '$21-$30', min: 20.01, max: 30 },
+            { label: '$31-$50', min: 30.01, max: 50 },
+            { label: '$51+', min: 50.01, max: 9999 }
+        ];
+
+        const avgRates = [];
+        const gameCounts = [];
+
+        ranges.forEach(r => {
+            const games = data.filter(d => {
+                const p = d.price || 0;
+                if (r.max === 0) return p === 0;
+                return p >= r.min && p <= r.max;
+            });
+            const rates = games.filter(g => g.positive_rate != null).map(g => g.positive_rate);
+            avgRates.push(rates.length ? +(rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(1) : 0);
+            gameCounts.push(games.length);
+        });
 
         charts['priceScoreScatterChart'] = new Chart(ctx, {
-            type: 'scatter',
+            type: 'bar',
             data: {
-                datasets: [{
-                    label: 'เกม',
-                    data: scatterData,
-                    backgroundColor: chartTheme.colors[1] + '99',
-                    pointRadius: 4
-                }]
+                labels: ranges.map(r => r.label),
+                datasets: [
+                    {
+                        label: 'คะแนนรีวิวเฉลี่ย (%)',
+                        data: avgRates,
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'จำนวนเกม',
+                        data: gameCounts,
+                        backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y1'
+                    }
+                ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { title: { display: true, text: 'ราคา ($)' }, grid: { color: chartTheme.gridColor } },
-                    y: { title: { display: true, text: 'อัตรารีวิวดี (%)' }, grid: { color: chartTheme.gridColor } }
+                    x: { grid: { color: chartTheme.gridColor } },
+                    y: {
+                        position: 'left',
+                        title: { display: true, text: 'คะแนนเฉลี่ย (%)', font: { size: 12 } },
+                        grid: { color: chartTheme.gridColor },
+                        min: 0, max: 100,
+                        ticks: { callback: v => v + '%' }
+                    },
+                    y1: {
+                        position: 'right',
+                        title: { display: true, text: 'จำนวนเกม', font: { size: 12 } },
+                        grid: { drawOnChartArea: false },
+                        min: 0
+                    }
                 },
                 plugins: {
+                    legend: { display: true, labels: { usePointStyle: true, padding: 15 } },
                     tooltip: {
-                        callbacks: { label: (ctx) => `${ctx.raw.name}: $${ctx.raw.x}, ดี ${ctx.raw.y}%` }
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 10
                     }
                 }
             }
@@ -364,36 +416,72 @@ document.addEventListener('DOMContentLoaded', () => {
         destroyChart('revenueBubbleChart');
         const ctx = document.getElementById('revenueBubbleChart').getContext('2d');
 
-        // Take top 50 by revenue for bubble to avoid crowding
-        const top = [...data].sort((a, b) => (b.estimated_revenue || 0) - (a.estimated_revenue || 0)).slice(0, 50);
-        const maxRev = Math.max(1, ...top.map(d => d.estimated_revenue || 0));
+        // กรองเฉพาะเกมที่มีราคาและรายได้ แล้วเรียง Top 15
+        const top = [...data]
+            .filter(d => d.price > 0 && (d.estimated_revenue || 0) > 0)
+            .sort((a, b) => (b.estimated_revenue || 0) - (a.estimated_revenue || 0))
+            .slice(0, 15);
 
-        const bubbleData = top.map(d => ({
-            x: d.total_reviews || 0,
-            y: d.price || 0,
-            r: Math.max(5, ((d.estimated_revenue || 0) / maxRev) * 30),
-            name: d.name || 'Unknown',
-            rev: d.estimated_revenue || 0
-        }));
+        // ตัดชื่อเกมให้สั้นลง (max 25 ตัวอักษร)
+        const labels = top.map(d => {
+            const name = d.name || 'Unknown';
+            return name.length > 25 ? name.substring(0, 22) + '...' : name;
+        });
+        const revenues = top.map(d => d.estimated_revenue || 0);
+        const prices = top.map(d => d.price || 0);
+
+        // ไล่สีจากม่วงเข้มไปอ่อนตามลำดับ
+        const colors = top.map((_, i) => {
+            const alpha = 0.9 - (i * 0.04);
+            return `rgba(139, 92, 246, ${alpha})`;
+        });
 
         charts['revenueBubbleChart'] = new Chart(ctx, {
-            type: 'bubble',
+            type: 'bar',
             data: {
+                labels: labels,
                 datasets: [{
-                    label: 'เกมรายได้สูงสุด',
-                    data: bubbleData,
-                    backgroundColor: chartTheme.colors[3] + 'aa'
+                    label: 'รายได้ประมาณการ ($)',
+                    data: revenues,
+                    backgroundColor: colors,
+                    borderColor: 'rgba(139, 92, 246, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { title: { display: true, text: 'รีวิวทั้งหมด' }, grid: { color: chartTheme.gridColor } },
-                    y: { title: { display: true, text: 'ราคา ($)' }, grid: { color: chartTheme.gridColor } }
+                    x: {
+                        title: { display: true, text: 'รายได้ประมาณการ ($)', font: { size: 12 } },
+                        grid: { color: chartTheme.gridColor },
+                        ticks: {
+                            callback: v => v >= 1000000 ? '$' + (v/1000000).toFixed(0) + 'M' : '$' + (v/1000).toFixed(0) + 'K'
+                        }
+                    },
+                    y: {
+                        grid: { color: chartTheme.gridColor },
+                        ticks: { font: { size: 11 } }
+                    }
                 },
                 plugins: {
+                    legend: { display: false },
                     tooltip: {
-                        callbacks: { label: (ctx) => `${ctx.raw.name}: รายได้ $${(ctx.raw.rev / 1000000).toFixed(1)}M` }
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 10,
+                        callbacks: {
+                            title: (items) => top[items[0].dataIndex].name,
+                            label: (c) => {
+                                const g = top[c.dataIndex];
+                                const rev = g.estimated_revenue >= 1000000 ? `$${(g.estimated_revenue/1000000).toFixed(1)}M` : `$${(g.estimated_revenue/1000).toFixed(0)}K`;
+                                return [
+                                    `รายได้: ${rev}`,
+                                    `ราคา: $${(g.price || 0).toFixed(2)}`,
+                                    `รีวิว: ${(g.total_reviews || 0).toLocaleString()}`
+                                ];
+                            }
+                        }
                     }
                 }
             }
@@ -517,7 +605,32 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`${API_BASE}/pipeline-status`);
             const st = await res.json();
-            if (st.status === 'completed') { elements.pipelineBadge.className = 'status-item pipeline-status success'; elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Pipeline: พร้อมใช้งาน</span>`; }
+
+            let timeInfo = '';
+            if (st.last_run) {
+                const lastRun = new Date(st.last_run);
+                const diffMs = new Date() - lastRun;
+                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                if (diffHrs > 0) {
+                    timeInfo = ` (${diffHrs} ชม. ที่แล้ว)`;
+                } else {
+                    timeInfo = ` (${diffMins} นาทีที่แล้ว)`;
+                }
+            }
+
+            if (st.status === 'completed') {
+                elements.pipelineBadge.className = 'status-item pipeline-status success';
+                elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Pipeline: พร้อมใช้งาน${timeInfo}</span>`;
+            } else if (st.status === 'outdated') {
+                elements.pipelineBadge.className = 'status-item pipeline-status warning';
+                elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Pipeline: ควรแจ้งอัปเดต${timeInfo}</span>`;
+                elements.pipelineBadge.title = st.message || 'ข้อมูลไม่อัปเดตเกิน 24 ชม.';
+            } else if (st.status === 'waiting') {
+                elements.pipelineBadge.className = 'status-item pipeline-status warning';
+                elements.pipelineBadge.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Pipeline: รอการรัน...</span>`;
+            }
         } catch (e) { }
     }
 

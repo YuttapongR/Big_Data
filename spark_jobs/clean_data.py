@@ -43,6 +43,10 @@ def clean_steam_data():
         
         # 1. ลบ null ในคอลัมน์สำคัญ
         reviews_df = reviews_df.dropna(subset=["appid", "author_steamid", "voted_up", "timestamp_created"])
+        #appid เป็นตัวเชื่อมโยง (Key) ระหว่าง "ข้อมูลรีวิว" และ "ข้อมูลรายละเอียดเกม"
+        #author_steamid ใช้ระบุตัวตนของผู้ใช้ (Unique User) เพื่อคำนวณ Unique Reviewers
+        #voted_up  เป็นหัวใจของการวัด Sentiment (ความรู้สึก) ว่ารีวิวนี้เป็นบวกหรือลบ
+        #timestamp_created ใช้สำหรับวิเคราะห์ Time-series (แนวโน้มตามกาลเวลา)
 
         # 2. แปลง voted_up เป็น boolean (is_positive)
         reviews_df = reviews_df.withColumn(
@@ -142,7 +146,7 @@ def clean_steam_data():
             "reviews_total_scanned": original_count, #เก็บจำนวนReview ที่ระบบอ่านเข้ามา
             "reviews_processed_limit": original_count, # จำนวน Review ที่ถูกส่งเข้าสู่กระบวนการประมวลผล
             "reviews_cleaned_count": cleaned_count, #เก็บจำนวน Review ที่ ผ่านการทำความสะอาด และตรวจสอบเงื่อนไขต่างๆ แล้ว
-            "reviews_dropped": original_count - cleaned_count, #คำนวณจำนวน Review ที่ ถูกคัดออก โดยเอาจำนวนทั้งหมดตั้ง ลบด้วยจำนวนที่ผ่านการทำความสะอาด
+            "reviews_dropped": original_count - cleaned_count, #คำนวณจำนวน Review ที่ ถูกคัดออก โดยเอาจำนวนทั้งหมดตั้ง ลบ ด้วยจำนวนที่ผ่านการทำความสะอาด
             "apps_total": original_apps_count, # เก็บจำนวนข้อมูล Application (หรือรายชื่อเกม) ทั้งหมดที่มีตอนเริ่มต้น
             "apps_cleaned": cleaned_apps_count, # เก็บจำนวนข้อมูล Application ที่เหลืออยู่หลังจากลบข้อมูลซ้ำ หรือลบข้อมูลที่ไม่สมบูรณ์ออกแล้ว
             "apps_dropped": original_apps_count - cleaned_apps_count # คำนวณจำนวน Application ที่ ถูกคัดออก จากระบบ

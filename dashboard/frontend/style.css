@@ -241,6 +241,10 @@ select.glass-input option {
     color: var(--accent-green);
 }
 
+.pipeline-status.warning i {
+    color: #f59e0b; /* Orange/Amber */
+}
+
 .pipeline-status.error i {
     color: var(--accent-danger);
 }

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -129,17 +129,32 @@ async def get_data_quality():
     }, "is_mock": False}
 
 @app.get("/api/pipeline-status")
-async def get_pipeline_status():
+async def get_pipeline_status(response: Response):
+    # ป้องกัน Browser Cache เพื่อให้อ่านสถานะล่าสุดทุกครั้ง
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+
     if os.path.exists(PIPELINE_STATUS_PATH):
         try:
             with open(PIPELINE_STATUS_PATH, "r") as f:
                 status = json.load(f)
+            
+            # ตรวจสอบความสดใหม่ของข้อมูล (Freshness Check)
+            if "last_run" in status and status["last_run"]:
+                try:
+                    last_run_time = datetime.fromisoformat(status["last_run"])
+                    # ถ้าผ่านไปเกิน 24 ชั่วโมง (86400 วินาที)
+                    if (datetime.now() - last_run_time).total_seconds() > 86400:
+                        status["status"] = "outdated"
+                        status["message"] = "ข้อมูลเริ่มเก่าแล้ว (ไม่ได้อัปเดตเกิน 24 ชม.)"
+                except: pass
+
             return status
         except Exception as e:
             return {"status": "unknown", "error": str(e)}
     return {
         "status": "waiting",
-        "message": "No pipeline has been run yet. Waiting for PySpark job to finish processing raw data.",
+        "message": "ยังไม่มีการรัน Pipeline รอการประมวลผลจาก Spark...",
         "last_run": None
     }
 

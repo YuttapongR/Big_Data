@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, sum as _sum, mean, countDistinct, round, first, date_format, lower, regexp_replace, explode, split, length
+from pyspark.sql.functions import col, count, sum as _sum, mean, countDistinct, round, first, date_format, lower, regexp_replace, explode, split, length, year, coalesce, size, lit, when
 from pyspark.ml.feature import StopWordsRemover
 import os
 from datetime import datetime
@@ -143,14 +143,13 @@ def aggregate_steam_data():
                 .groupBy("appid").agg(first("name").alias("genre"))
         except Exception as e:
             print(f"Warning: Could not read genre data: {e}")
-            from pyspark.sql.functions import lit
             first_genre_df = apps_df.select("appid").withColumn("genre", lit("Unknown"))
 
         # รวมข้อมูลแอปและยอดรีวิวสะสมรายเกม
         analytics_apps = apps_df.select(
-            "appid", "name", "release_date", "mat_final_price", "recommendations_total", "metacritic_score",
+            "appid", "name", "release_date", "mat_final_price", "mat_currency", "recommendations_total", "metacritic_score",
             "supported_languages",
-            "mat_achievement_count", "mat_pc_os_min"
+            "mat_achievement_count"
         )
         
         analytics_apps = analytics_apps.join(first_genre_df, "appid", "left")
@@ -181,12 +180,16 @@ def aggregate_steam_data():
             print(f"Warning: Could not process controller support: {e}")
             analytics_df = analytics_df.withColumn("controller_support", lit("None"))
         
-        from pyspark.sql.functions import year, coalesce, size, lit, when
-        
+
         # คำนวณ Metrics เชิงธุรกิจ: ปีที่ออกขาย, อัตราความชอบ, รายได้โดยประมาณ, และจำนวนภาษา
         analytics_df = analytics_df.withColumn("release_year", year("release_date"))
         analytics_df = analytics_df.withColumn("positive_rate", round((col("positive_reviews") / col("total_reviews")) * 100, 1))
-        analytics_df = analytics_df.withColumn("price", coalesce(col("mat_final_price"), lit(0.0)))
+        # แปลงราคา: ใช้เฉพาะ USD (97% ของข้อมูล) หาร 100 เพื่อแปลงเซนต์เป็นดอลลาร์
+        # สกุลเงินอื่น (THB, JPY, RUB ฯลฯ) ตั้งเป็น 0 เพราะเทียบกันตรงๆ ไม่ได้
+        analytics_df = analytics_df.withColumn("price",
+            when(col("mat_currency") == "USD", coalesce(col("mat_final_price"), lit(0.0)) / 100.0)
+            .otherwise(lit(0.0))
+        )
         analytics_df = analytics_df.withColumn("estimated_revenue", col("price") * col("total_reviews") * 30)
         analytics_df = analytics_df.withColumn("language_count", size(split(col("supported_languages"), ",")))
         
