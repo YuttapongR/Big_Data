@@ -1,5 +1,10 @@
 # 🎮 Steam Big Data Pipeline
 
+# ยุทธพงศ์ รื่นจิตต์ 6704800002
+# อภิณญา เกตุแก้ว 6704800032
+# ปรวัฒน์ ไชยหอม 6704800023
+
+
 โปรเจกต์นี้เป็นระบบ Big Data Pipeline ครบวงจร ใช้ข้อมูล [Steam Dataset 2025: Multi-Modal Gaming Analytics](https://www.kaggle.com/datasets/crainbramp/steam-dataset-2025-multi-modal-gaming-analytics) จาก Kaggle (~239K เกม, ~1M+ รีวิว, ~870MB)  
 ประมวลผลด้วย **PySpark**, ควบคุมขั้นตอนด้วย **Apache Airflow**, และแสดงผลบน **Web Dashboard** ที่อัปเดตแบบ Real-time
 
