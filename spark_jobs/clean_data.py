@@ -3,6 +3,22 @@ from pyspark.sql.functions import col, to_timestamp, to_date, round, lower, trim
 import os
 import json
 
+def get_size_mb(path):
+    """คำนวณขนาดไฟล์หรือโฟลเดอร์ในหน่วย MB"""
+    if not os.path.exists(path):
+        return 0
+    if os.path.isfile(path):
+        # Use Python built-in round to avoid conflict with pyspark.sql.functions.round
+        return __builtins__.round(os.path.getsize(path) / (1024 * 1024), 2)
+    
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+    return __builtins__.round(total_size / (1024 * 1024), 2)
+
 def clean_steam_data():
     """ทำความสะอาดข้อมูล Steam Dataset 2025 ด้วย PySpark"""
     
@@ -23,8 +39,11 @@ def clean_steam_data():
     # ========== Clean Reviews ==========
     reviews_path = os.path.join(raw_dir, "reviews.csv")
     cleaned_reviews_path = os.path.join(processed_dir, "cleaned_reviews.parquet")
+    
+    reviews_raw_size = get_size_mb(reviews_path)
+    print(f"Reviews raw size: {reviews_raw_size} MB")
 
-    print(f"📥 Reading reviews.csv with PySpark...")
+    print(f"Reading reviews.csv with PySpark...")
     
     # Read CSV with PySpark
     try:
@@ -39,15 +58,11 @@ def clean_steam_data():
         
         original_count = reviews_df.count()
         
-        print(f"📥 Found {original_count:,} reviews. Processing all rows.")
+        print(f"Found {original_count:,} reviews. Processing all rows.")
         
         # 1. ลบ null ในคอลัมน์สำคัญ
         reviews_df = reviews_df.dropna(subset=["appid", "author_steamid", "voted_up", "timestamp_created"])
-        #appid เป็นตัวเชื่อมโยง (Key) ระหว่าง "ข้อมูลรีวิว" และ "ข้อมูลรายละเอียดเกม"
-        #author_steamid ใช้ระบุตัวตนของผู้ใช้ (Unique User) เพื่อคำนวณ Unique Reviewers
-        #voted_up  เป็นหัวใจของการวัด Sentiment (ความรู้สึก) ว่ารีวิวนี้เป็นบวกหรือลบ
-        #timestamp_created ใช้สำหรับวิเคราะห์ Time-series (แนวโน้มตามกาลเวลา)
-
+        
         # 2. แปลง voted_up เป็น boolean (is_positive)
         reviews_df = reviews_df.withColumn(
             "is_positive", 
@@ -86,16 +101,23 @@ def clean_steam_data():
         
         # Write to Parquet
         reviews_df.write.mode("overwrite").parquet(cleaned_reviews_path)
-        print(f"✅ Reviews cleaned: {original_count:,} → {cleaned_count:,} (removed {original_count - cleaned_count:,} invalid rows)")
+        reviews_cleaned_size = get_size_mb(cleaned_reviews_path)
+        print(f"Reviews cleaned: {original_count:,} → {cleaned_count:,} (removed {original_count - cleaned_count:,} invalid rows)")
+        print(f"Reviews cleaned size: {reviews_cleaned_size} MB")
         
     except Exception as e:
-        print(f"❌ Error processing reviews: {str(e)}")
+        print(f"Error processing reviews: {str(e)}")
+        cleaned_count = 0
+        reviews_cleaned_size = 0
 
     # ========== Clean Applications ==========
     apps_path = os.path.join(raw_dir, "applications.csv")
     cleaned_apps_path = os.path.join(processed_dir, "cleaned_apps.parquet")
 
-    print(f"📥 Reading applications.csv with PySpark...")
+    apps_raw_size = get_size_mb(apps_path)
+    print(f"Apps raw size: {apps_raw_size} MB")
+
+    print(f"Reading applications.csv with PySpark...")
     
     try:
         apps_df = spark.read.csv(
@@ -108,7 +130,7 @@ def clean_steam_data():
         )
         
         original_apps_count = apps_df.count()
-        print(f"📥 Read {original_apps_count:,} applications")
+        print(f"Read {original_apps_count:,} applications")
 
         # 1. ลบ null
         apps_df = apps_df.dropna(subset=["appid", "name"])
@@ -139,24 +161,30 @@ def clean_steam_data():
         
         # Write to Parquet
         apps_df.write.mode("overwrite").parquet(cleaned_apps_path)
-        print(f"✅ Applications cleaned: {original_apps_count:,} → {cleaned_apps_count:,} (removed {original_apps_count - cleaned_apps_count:,})")
+        apps_cleaned_size = get_size_mb(cleaned_apps_path)
+        print(f"Applications cleaned: {original_apps_count:,} → {cleaned_apps_count:,} (removed {original_apps_count - cleaned_apps_count:,})")
+        print(f"Apps cleaned size: {apps_cleaned_size} MB")
         
         # Save error summary
         error_log = {
-            "reviews_total_scanned": original_count, #เก็บจำนวนReview ที่ระบบอ่านเข้ามา
-            "reviews_processed_limit": original_count, # จำนวน Review ที่ถูกส่งเข้าสู่กระบวนการประมวลผล
-            "reviews_cleaned_count": cleaned_count, #เก็บจำนวน Review ที่ ผ่านการทำความสะอาด และตรวจสอบเงื่อนไขต่างๆ แล้ว
-            "reviews_dropped": original_count - cleaned_count, #คำนวณจำนวน Review ที่ ถูกคัดออก โดยเอาจำนวนทั้งหมดตั้ง ลบ ด้วยจำนวนที่ผ่านการทำความสะอาด
-            "apps_total": original_apps_count, # เก็บจำนวนข้อมูล Application (หรือรายชื่อเกม) ทั้งหมดที่มีตอนเริ่มต้น
-            "apps_cleaned": cleaned_apps_count, # เก็บจำนวนข้อมูล Application ที่เหลืออยู่หลังจากลบข้อมูลซ้ำ หรือลบข้อมูลที่ไม่สมบูรณ์ออกแล้ว
-            "apps_dropped": original_apps_count - cleaned_apps_count # คำนวณจำนวน Application ที่ ถูกคัดออก จากระบบ
+            "reviews_total_scanned": original_count if 'original_count' in locals() else 0, 
+            "reviews_processed_limit": original_count if 'original_count' in locals() else 0, 
+            "reviews_cleaned_count": cleaned_count if 'cleaned_count' in locals() else 0, 
+            "reviews_dropped": (original_count - cleaned_count) if 'original_count' in locals() and 'cleaned_count' in locals() else 0,
+            "reviews_raw_size_mb": reviews_raw_size,
+            "reviews_cleaned_size_mb": reviews_cleaned_size if 'reviews_cleaned_size' in locals() else 0,
+            "apps_total": original_apps_count, 
+            "apps_cleaned": cleaned_apps_count, 
+            "apps_dropped": original_apps_count - cleaned_apps_count,
+            "apps_raw_size_mb": apps_raw_size,
+            "apps_cleaned_size_mb": apps_cleaned_size
         }
         
         with open(os.path.join(processed_dir, "data_quality_log.json"), "w") as f:
             json.dump(error_log, f, indent=4)
             
     except Exception as e:
-        print(f"❌ Error processing applications: {str(e)}")
+        print(f"Error processing applications: {str(e)}")
 
     spark.stop()
 

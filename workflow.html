@@ -65,7 +65,8 @@
 
 <body>
     <h1>Steam Big Data Architecture & Workflow</h1>
-    <p>ไดอะแกรมด้านล่างนี้แสดงขั้นตอนการทำงานของระบบทั้งหมดตั้งแต่ไฟล์ข้อมูลดิบ (Raw Data) ไปจนถึงการแสดงผลบนหน้าจอ Dashboard ครับ</p>
+    <p>ไดอะแกรมด้านล่างนี้แสดงขั้นตอนการทำงานของระบบทั้งหมดตั้งแต่ไฟล์ข้อมูลดิบ (Raw Data) ไปจนถึงการแสดงผลบนหน้าจอ
+        Dashboard ครับ</p>
 
     <!-- กล่องแสดงผล Mermaid Diagram -->
     <div class="mermaid">
@@ -122,24 +123,26 @@
         UI1["app.js, index.html, style.css"]:::frontend
 
         API1 <-->|"Fetch Trends & KPIs"| UI1
-        API2 <-->|"Fetch Analytics & Slicers"| UI1
-        API3 <-->|"Fetch Word Cloud"| UI1
-        API4 <-->|"Fetch Quality Metrics"| UI1
-        API5 <-->|"Fetch Status"| UI1
-        end
+            API2 <-->|"Fetch Analytics & Slicers"| UI1
+                API3 <-->|"Fetch Word Cloud"| UI1
+                    API4 <-->|"Fetch Quality Metrics"| UI1
+                        API5 <-->|"Fetch Status"| UI1
+                            end
     </div>
 
     <h2>คำอธิบายแต่ละขั้นตอน (Step-by-Step Flow)</h2>
 
     <div class="step-box">
         <h3>1. 📁 Data Source (ข้อมูลต้นทาง)</h3>
-        <p>ผู้ใช้นำไฟล์ <code>reviews.csv</code> และ <code>applications.csv</code> ไปวางในโฟลเดอร์ <code>data/raw/</code></p>
+        <p>ผู้ใช้นำไฟล์ <code>reviews.csv</code> และ <code>applications.csv</code> ไปวางในโฟลเดอร์
+            <code>data/raw/</code></p>
     </div>
 
     <div class="step-box">
         <h3>2. ⚙️ Data Pipeline (การทำความสะอาดและสรุปผลด้วย PySpark)</h3>
         <p>Airflow หรือการรันด้วยมือจะสั่งรันสคริปต์ PySpark ตามลำดับดังนี้:</p>
-        <p><em>*หมายเหตุ: สคริปต์รองรับสถาปัตยกรรม <strong>Relative Paths</strong> ทำให้รันได้ทั้งบน Local (Windows) และ Docker โดยไม่ต้องแก้โค้ด</em></p>
+        <p><em>*หมายเหตุ: สคริปต์รองรับสถาปัตยกรรม <strong>Relative Paths</strong> ทำให้รันได้ทั้งบน Local (Windows) และ
+                Docker โดยไม่ต้องแก้โค้ด</em></p>
         <ol>
             <li><strong><code>clean_data.py</code></strong>:
                 <ul>
@@ -151,7 +154,8 @@
             <li><strong><code>aggregate_data.py</code></strong>:
                 <ul>
                     <li>นำไฟล์ที่สะอาดแล้วมาคำนวณสถิติรายวัน และสรุปผลภาพรวม</li>
-                    <li><strong>Games Analytics</strong>: คำนวณรายได้โดยประมาณ, อัตราความชอบ, จำนวนภาษา และปีที่วางจำหน่าย (จำกัด 5,000 อันดับแรกเพื่อประสิทธิภาพ)</li>
+                    <li><strong>Games Analytics</strong>: คำนวณรายได้โดยประมาณ, อัตราความชอบ, จำนวนภาษา
+                        และปีที่วางจำหน่าย (จำกัด 5,000 อันดับแรกเพื่อประสิทธิภาพ)</li>
                     <li><strong>NLP Keyword Extraction</strong>: กรอง Stop Words เพื่อหาคำยอดนิยมจากรีวิว</li>
                     <li>บันทึกผลลัพธ์เป็นไฟล์ Parquet สำหรับ API Backend</li>
                 </ul>
@@ -164,7 +168,8 @@
         <p>FastAPI ทำหน้าที่อ่านไฟล์ Parquet จากโฟลเดอร์ <code>data/processed/</code> และส่งข้อมูลผ่าน API:</p>
         <ul>
             <li><strong><code>/api/dashboard-data</code></strong>: ดึงข้อมูลสรุปรายวันและ KPI หลัก</li>
-            <li><strong><code>/api/games-analytics</code></strong>: ส่งข้อมูลเกมพร้อมฟิลด์ที่ผ่านการคำนวณ (ราคา, รายได้, คะแนน, ปี)</li>
+            <li><strong><code>/api/games-analytics</code></strong>: ส่งข้อมูลเกมพร้อมฟิลด์ที่ผ่านการคำนวณ (ราคา, รายได้,
+                คะแนน, ปี)</li>
             <li><strong><code>/api/common-words</code></strong>: ส่งข้อมูลคำนิยมสำหรับ Word Cloud</li>
             <li><strong><code>/api/data-quality</code></strong>: ส่งสถิติการทำความสะอาดข้อมูล (Cleaned vs Dropped)</li>
             <li><strong><code>/api/pipeline-status</code></strong>: ส่งสถานะการทำงานล่าสุดของ Spark Pipeline</li>
@@ -174,12 +179,14 @@
     <div class="step-box">
         <h3>4. 💻 Frontend (หน้าจอผู้ใช้)</h3>
         <ul>
-            <li><strong>Consolidated UI</strong>: ยุบรวมข้อมูลเชิงพาณิชย์และแนวโน้มเข้าด้วยกันเพื่อให้อ่านง่ายในหน้าเดียว</li>
+            <li><strong>Consolidated UI</strong>:
+                ยุบรวมข้อมูลเชิงพาณิชย์และแนวโน้มเข้าด้วยกันเพื่อให้อ่านง่ายในหน้าเดียว</li>
             <li>นำข้อมูลไปแสดงผลบนกราฟต่างๆ:
                 <ul>
                     <li><strong>Release Trend</strong>: กราฟเส้นแสดง "จำนวนเกมที่วางจำหน่ายจริง" ตามช่วงเวลา</li>
                     <li><strong>Market Analysis</strong>: กราฟแท่งแสดงส่วนแบ่งตลาดแยกตามแนวเกม</li>
-                    <li><strong>Commercial Insights</strong>: กราฟสัดส่วนเกมฟรี vs เกมจ่ายเงิน (ย้ายจากแท็บเทคนิคมาไว้หน้าแรก)</li>
+                    <li><strong>Commercial Insights</strong>: กราฟสัดส่วนเกมฟรี vs เกมจ่ายเงิน
+                        (ย้ายจากแท็บเทคนิคมาไว้หน้าแรก)</li>
                     <li><strong>Price vs Score</strong>: กราฟจุด (Scatter) วิเคราะห์ความคุ้มค่าของราคาต่อคะแนนรีวิว</li>
                     <li><strong>Game Explorer</strong>: ตารางสำรวจข้อมูลเกมแบบ Interactive</li>
                 </ul>
@@ -188,11 +195,23 @@
         <div class="step-box" style="border-left: 5px solid #27ae60;">
             <h3>✨ อัปเดตระบบล่าสุด (Latest System Updates)</h3>
             <ul>
-                <li><strong>Hybrid Architecture Support:</strong> ปรับปรุงระบบจัดการพาธให้เป็นแบบ Relative ทำให้รัน Pipeline ได้ทั้งบน Local (venv) และ Docker/Airflow โดยไม่ต้องสลับโค้ดไปมา</li>
-                <li><strong>UI Consolidation & Expansion:</strong> ลบแท็บ "ข้อมูลทางเทคนิค" และย้ายกราฟ "สัดส่วนเกมฟรี/จ่ายเงิน" มาไว้ที่หน้าแรก (Market & Trend) พร้อมขยายขนาดกล่องให้ใหญ่ขึ้น</li>
-                <li><strong>Release Trend Correction:</strong> แก้ไขตรรกะกราฟแนวโน้มให้แสดง "จำนวนเกมที่วางจำหน่ายตามช่วงเวลา" จริงๆ (อ้างอิงจาก Release Year)</li>
-                <li><strong>Performance Optimization:</strong> คงลิมิตการส่งข้อมูลเกมไว้ที่ 5,000 อันดับสูงสุด เพื่อความลื่นไหลของหน้า Dashboard</li>
-                <li><strong>System Cleanup:</strong> ลบไฟล์ Parquet ที่ล้าสมัยและโค้ดที่ไม่ได้ใช้งาน (Dead Code) ออกจากโปรเจกต์</li>
+                <li><strong>Pipeline Monitoring Enhancement (2026-05-04):</strong> ปรับปรุงหน้าจอ Dashboard ให้แสดง
+                    "เวลาล่าสุดที่รัน Pipeline" และ <strong>"การเปรียบเทียบขนาดไฟล์ก่อนและหลังคลีน"</strong> 
+                    เพื่อให้ผู้ใช้ทราบถึงประสิทธิภาพของการบีบอัดข้อมูลแบบ Parquet</li>
+                <li><strong>Price vs Sentiment Analysis (2026-05-04):</strong>
+                    เปลี่ยนรูปแบบกราฟวิเคราะห์ราคาต่อคะแนนรีวิวจาก Scatter Plot เป็น <strong>Grouped Bar Chart</strong>
+                    แบ่งตามช่วงราคา
+                    เพื่อให้เห็นความสัมพันธ์ระหว่างราคากับความพึงพอใจและจำนวนเกมในแต่ละช่วงได้ชัดเจนยิ่งขึ้น</li>
+                <li><strong>Revenue Leaderboard Visualization (2026-05-04):</strong> ปรับปรุงกราฟรายได้สูงสุด (Top
+                    Revenue) เป็น <strong>Horizontal Bar Chart</strong> พร้อมระบบไล่สี (Gradient) และ Tooltips
+                    ที่แสดงรายละเอียดรายได้และราคาอย่างครบถ้วน</li>
+                <li><strong>Data Documentation & CLI Tool (2026-05-04):</strong> สร้างไฟล์สรุปกระบวนการทำงาน
+                    <code>Pipeline_Explanation.txt</code> และสคริปต์ <code>analyze_top_revenue.py</code>
+                    สำหรับการวิเคราะห์อันดับรายได้ผ่าน Command Line โดยตรง</li>
+                <li><strong>Hybrid Architecture Support:</strong> ปรับปรุงระบบจัดการพาธให้เป็นแบบ Relative ทำให้รัน
+                    Pipeline ได้ทั้งบน Local (venv) และ Docker/Airflow โดยไม่ต้องสลับโค้ดไปมา</li>
+                <li><strong>UI Consolidation & Expansion:</strong> ยุบรวมแท็บข้อมูลให้ใช้งานง่ายขึ้น
+                    ย้ายกราฟสัดส่วนเกมฟรี/จ่ายเงินมาไว้ที่หน้าแรก (Market & Trend) พร้อมขยายขนาดการแสดงผล</li>
             </ul>
         </div>
     </div>

@@ -29,6 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dqAppsTotal: document.getElementById('dq-apps-total'),
         dqAppsClean: document.getElementById('dq-apps-clean'),
         dqAppsIndexed: document.getElementById('dq-apps-indexed'),
+        dqReviewsRawSize: document.getElementById('dq-reviews-raw-size'),
+        dqReviewsCleanSize: document.getElementById('dq-reviews-clean-size'),
+        dqAppsRawSize: document.getElementById('dq-apps-raw-size'),
+        dqAppsCleanSize: document.getElementById('dq-apps-clean-size'),
     };
 
     let charts = {};
@@ -656,6 +660,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (elements.dqAppsIndexed) {
                         elements.dqAppsIndexed.textContent = (dq.data.apps_cleaned || 0).toLocaleString();
                     }
+                }
+                
+                // Update File Sizes
+                if (dq.data.reviews_raw_size_mb !== undefined && elements.dqReviewsRawSize) {
+                    elements.dqReviewsRawSize.textContent = dq.data.reviews_raw_size_mb + ' MB';
+                }
+                if (dq.data.reviews_cleaned_size_mb !== undefined && elements.dqReviewsCleanSize) {
+                    elements.dqReviewsCleanSize.textContent = dq.data.reviews_cleaned_size_mb + ' MB';
+                }
+                if (dq.data.apps_raw_size_mb !== undefined && elements.dqAppsRawSize) {
+                    elements.dqAppsRawSize.textContent = dq.data.apps_raw_size_mb + ' MB';
+                }
+                if (dq.data.apps_cleaned_size_mb !== undefined && elements.dqAppsCleanSize) {
+                    elements.dqAppsCleanSize.textContent = dq.data.apps_cleaned_size_mb + ' MB';
                 }
             }
         } catch (e) { console.error('DQ fetch error:', e); }

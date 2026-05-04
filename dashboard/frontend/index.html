@@ -203,7 +203,7 @@
                 <div class="charts-grid">
                     <div class="chart-container glass-panel span-2">
                         <div class="chart-header">
-                            <h2><i class="fa-solid fa-chart-column"></i> คุณภาพ: คะแนนรีวิวเฉลี่ยตามช่วงราคา</h2>
+                            <h2><i class="fa-solid fa-scatter-plot"></i> คุณภาพ: ราคาเทียบกับคะแนน</h2>
                         </div>
                         <div class="chart-wrapper">
                             <canvas id="priceScoreScatterChart"></canvas>
@@ -249,6 +249,34 @@
                 <div class="charts-grid">
                     <div class="chart-container glass-panel span-2">
                         <div class="chart-header">
+                            <h2><i class="fa-solid fa-bolt"></i> ประสิทธิภาพ: CSV vs Parquet</h2>
+                        </div>
+                        <div class="performance-comparison" style="padding: 1.5rem;">
+                            <div class="perf-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                                <div class="perf-card" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border-left: 4px solid #94a3b8;">
+                                    <span style="display: block; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">ความเร็วในการอ่าน CSV</span>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: #94a3b8;">~12.01 วินาที</div>
+                                    <small style="color: rgba(255,255,255,0.3);">สำหรับ 1 ล้านแถว</small>
+                                </div>
+                                <div class="perf-card" style="background: rgba(59, 130, 246, 0.05); padding: 1rem; border-radius: 12px; border-left: 4px solid var(--steam-blue);">
+                                    <span style="display: block; color: var(--steam-blue); font-size: 0.85rem; margin-bottom: 0.5rem;">ความเร็วในการอ่าน Parquet</span>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--steam-blue);">~1.50 วินาที</div>
+                                    <small style="color: rgba(59, 130, 246, 0.4);">ลดการโหลดลง 8 เท่า</small>
+                                </div>
+                                <div class="perf-card" style="background: rgba(16, 185, 129, 0.05); padding: 1rem; border-radius: 12px; border-left: 4px solid var(--success-green);">
+                                    <span style="display: block; color: var(--success-green); font-size: 0.85rem; margin-bottom: 0.5rem;">เวลาที่ประหยัดได้</span>
+                                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--success-green);">10.51 วินาที</div>
+                                    <small style="color: rgba(16, 185, 129, 0.4);">ต่อการเรียกใช้งาน 1 ครั้ง</small>
+                                </div>
+                            </div>
+                            <div class="perf-info" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px; font-size: 0.9rem; line-height: 1.6;">
+                                <p><i class="fa-solid fa-circle-info" style="color: var(--steam-blue); margin-right: 0.5rem;"></i> <strong>ทำไม Parquet ถึงเร็วกว่า?</strong> เนื่องจากเป็นรูปแบบไฟล์แบบ Columnar (จัดเก็บตามคอลัมน์) ทำให้ PySpark สามารถอ่านเฉพาะคอลัมน์ที่จำเป็นสำหรับการวิเคราะห์ได้ทันที โดยไม่ต้องอ่านข้อมูลทั้งบรรทัดเหมือน CSV</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container glass-panel span-2">
+                        <div class="chart-header">
                             <h2><i class="fa-solid fa-microchip"></i> PySpark ETL: สถิติการทำความสะอาดข้อมูล</h2>
                         </div>
                         <div class="data-quality-content"
@@ -261,6 +289,8 @@
                                         id="dq-reviews-clean">--</strong></div>
                                 <div class="quality-row"><span>คัดออก (Data Error)</span><strong id="dq-reviews-dropped"
                                         class="danger-text">--</strong></div>
+                                <div class="quality-row" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 0.5rem; padding-top: 0.5rem;"><span>ขนาดไฟล์เริ่มต้น</span><strong id="dq-reviews-raw-size">--</strong></div>
+                                <div class="quality-row"><span>ขนาดหลังคลีน</span><strong id="dq-reviews-clean-size" class="success-text">--</strong></div>
                             </div>
                             <div class="dq-section">
                                 <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">ข้อมูลแอป (CSV)</h3>
@@ -271,6 +301,8 @@
                                 <div class="quality-row"><span>ข้อมูลพร้อมใช้งาน</span><strong
                                         id="dq-apps-indexed">--</strong>
                                 </div>
+                                <div class="quality-row" style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 0.5rem; padding-top: 0.5rem;"><span>ขนาดไฟล์เริ่มต้น</span><strong id="dq-apps-raw-size">--</strong></div>
+                                <div class="quality-row"><span>ขนาดหลังคลีน</span><strong id="dq-apps-clean-size" class="success-text">--</strong></div>
                             </div>
                         </div>
                     </div>
